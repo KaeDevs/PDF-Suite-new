@@ -18,6 +18,8 @@ class CompressScreen extends StatefulWidget {
 class _CompressScreenState extends State<CompressScreen> {
   final List<String> _selectedPdfPaths = [];
   PdfCompressionPreset _preset = PdfCompressionPreset.medium;
+  PdfSizeTarget _sizeTarget = PdfSizeTarget.half;
+  bool _useSizeMode = false; // Toggle between quality and size mode
 
   bool _isLoading = false;
   String? _loadingText;
@@ -43,15 +45,25 @@ class _CompressScreenState extends State<CompressScreen> {
     });
 
     try {
-      final outputs = await PdfCompressionService.compressBatch(
-        _selectedPdfPaths,
-        preset: _preset,
-        onProgress: (i, total) {
-          if (mounted) {
-            setState(() => _loadingText = 'Compressing $i of $total…');
-          }
-        },
-      );
+      final outputs = _useSizeMode
+          ? await PdfCompressionService.compressBatchBySize(
+              _selectedPdfPaths,
+              sizeTarget: _sizeTarget,
+              onProgress: (i, total) {
+                if (mounted) {
+                  setState(() => _loadingText = 'Compressing $i of $total…');
+                }
+              },
+            )
+          : await PdfCompressionService.compressBatch(
+              _selectedPdfPaths,
+              preset: _preset,
+              onProgress: (i, total) {
+                if (mounted) {
+                  setState(() => _loadingText = 'Compressing $i of $total…');
+                }
+              },
+            );
 
       if (outputs.length == 1) {
         final out = outputs.first;
@@ -108,23 +120,60 @@ class _CompressScreenState extends State<CompressScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Preset selector
+                // Mode toggle
                 Row(
                   children: [
-                    const Text('Quality:'),
+                    const Text('Mode:'),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: SegmentedButton<PdfCompressionPreset>(
+                      child: SegmentedButton<bool>(
                         segments: const [
-                          ButtonSegment(value: PdfCompressionPreset.low, label: Text('Low')),
-                          ButtonSegment(value: PdfCompressionPreset.medium, label: Text('Medium')),
+                          ButtonSegment(value: false, label: Text('Quality')),
+                          ButtonSegment(value: true, label: Text('Target Size')),
                         ],
-                        selected: {_preset},
-                        onSelectionChanged: (s) => setState(() => _preset = s.first),
+                        selected: {_useSizeMode},
+                        onSelectionChanged: (s) => setState(() => _useSizeMode = s.first),
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                // Conditional preset selector
+                if (!_useSizeMode)
+                  Row(
+                    children: [
+                      const Text('Quality:'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SegmentedButton<PdfCompressionPreset>(
+                          segments: const [
+                            ButtonSegment(value: PdfCompressionPreset.low, label: Text('Low')),
+                            ButtonSegment(value: PdfCompressionPreset.medium, label: Text('Medium')),
+                          ],
+                          selected: {_preset},
+                          onSelectionChanged: (s) => setState(() => _preset = s.first),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Row(
+                    children: [
+                      const Text('Target Size:'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SegmentedButton<PdfSizeTarget>(
+                          segments: const [
+                            ButtonSegment(value: PdfSizeTarget.quarter, label: Text('25%')),
+                            ButtonSegment(value: PdfSizeTarget.half, label: Text('50%')),
+                            ButtonSegment(value: PdfSizeTarget.threeQuarter, label: Text('75%')),
+                          ],
+                          selected: {_sizeTarget},
+                          onSelectionChanged: (s) => setState(() => _sizeTarget = s.first),
+                        ),
+                      ),
+                    ],
+                  ),
                 const SizedBox(height: 16),
                 // Pick files button
                 OutlinedButton.icon(
