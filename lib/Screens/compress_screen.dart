@@ -5,6 +5,7 @@ import 'package:docu_scan/Services/file_service.dart';
 import 'package:docu_scan/Services/pdf_compression_service.dart';
 import 'package:docu_scan/Widgets/common/custom_snackbar.dart';
 import 'package:docu_scan/Widgets/common/loading_overlay.dart';
+import 'package:docu_scan/services/ad_service.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
@@ -16,6 +17,7 @@ class CompressScreen extends StatefulWidget {
 }
 
 class _CompressScreenState extends State<CompressScreen> {
+  final AdService _adService = AdService();
   final List<String> _selectedPdfPaths = [];
   PdfCompressionPreset _preset = PdfCompressionPreset.medium;
   PdfSizeTarget _sizeTarget = PdfSizeTarget.half;
@@ -23,6 +25,18 @@ class _CompressScreenState extends State<CompressScreen> {
 
   bool _isLoading = false;
   String? _loadingText;
+
+  @override
+  void initState() {
+    super.initState();
+    _adService.loadInterstitialAd();
+  }
+
+  @override
+  void dispose() {
+    _adService.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickPdfs() async {
     try {
@@ -45,8 +59,9 @@ class _CompressScreenState extends State<CompressScreen> {
     });
 
     try {
-      final outputs = _useSizeMode
-          ? await PdfCompressionService.compressBatchBySize(
+      // Start compression in background and show ad while processing
+      final compressionFuture = _useSizeMode
+          ? PdfCompressionService.compressBatchBySize(
               _selectedPdfPaths,
               sizeTarget: _sizeTarget,
               onProgress: (i, total) {
@@ -55,7 +70,7 @@ class _CompressScreenState extends State<CompressScreen> {
                 }
               },
             )
-          : await PdfCompressionService.compressBatch(
+          : PdfCompressionService.compressBatch(
               _selectedPdfPaths,
               preset: _preset,
               onProgress: (i, total) {
@@ -64,6 +79,9 @@ class _CompressScreenState extends State<CompressScreen> {
                 }
               },
             );
+
+      // Show ad while compression runs in background
+      final outputs = await _adService.showAdWhileFuture(compressionFuture);
 
       if (outputs.length == 1) {
         final out = outputs.first;
@@ -103,6 +121,66 @@ class _CompressScreenState extends State<CompressScreen> {
     return base.endsWith('_compressed') ? '$base.zip' : '${base}_compressed.zip';
   }
 
+  void _showCompressionInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Compression Methods'),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Quality Mode',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• Low: Aggressive compression with smaller file size but reduced image quality\n'
+                '• Medium: Balanced compression maintaining good quality while reducing size\n',
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Target Size Mode',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• 25%: Compress to 1/4 of original size (most aggressive)\n'
+                '• 50%: Compress to half of original size (recommended)\n'
+                '• 75%: Compress to 3/4 of original size (light compression)\n',
+              ),
+              SizedBox(height: 8),
+              // Text(
+              //   'How It Works',
+              //   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              // ),
+              // SizedBox(height: 8),
+              // Text(
+              //   'PDFs are compressed by converting each page to optimized JPEG images and rebuilding the document. This method works best for scanned documents and image-based PDFs.\n\n'
+              //   'Note: Text searchability may be reduced after compression.',
+              //   style: TextStyle(fontSize: 13, color: Colors.grey),
+              // ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -111,6 +189,13 @@ class _CompressScreenState extends State<CompressScreen> {
         appBar: AppBar(
           title: const Text('Compress PDFs'),
           centerTitle: true,
+          actions: [
+            IconButton(
+              onPressed: _showCompressionInfo,
+              icon: const Icon(Icons.info_outline),
+              tooltip: 'Compression Info',
+            ),
+          ],
         ),
         body: LoadingOverlay(
           isLoading: _isLoading,
