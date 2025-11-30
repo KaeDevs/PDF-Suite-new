@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:docu_scan/Modules/scan_settings.dart';
 import 'package:docu_scan/Screens/about_screen.dart';
 import 'package:docu_scan/Utils/tools.dart';
+import 'package:docu_scan/Utils/app_theme.dart';
 import 'package:flutter/material.dart';
 // import '../models/scan_settings.dart';
 import '../Modules/FeedBack/feedback_diaog.dart';
@@ -470,40 +471,49 @@ Widget build(BuildContext context) {
               )
             : Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         "Choose an option below",
                         style: TextStyle(
-                          fontSize: 16,
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                          fontWeight: FontWeight.w500,
+                          fontSize: 18,
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 28),
 
-                      // View PDFs Button
-                      _ModernButton(
-                        icon: Icons.document_scanner_outlined,
-                        label: 'Scan Document',
+                      // Scan Document Card
+                      _ModernCard(
+                        icon: Icons.document_scanner_rounded,
+                        title: 'Scan Document',
+                        subtitle: 'Scan using camera',
+                        gradientIndex: 0,
+                        rating: 4.5,
                         onPressed: _isLoading ? null : _chooseInputMethod,
-                        isLoading: _isLoading,
                       ),
                       const SizedBox(height: 16),
 
-                      // Scan Document Button
-                      _ModernButton(
-                        icon: Icons.picture_as_pdf_outlined,
-                        label: 'Open PDFs',
+                      // Open PDFs Card
+                      _ModernCard(
+                        icon: Icons.picture_as_pdf_rounded,
+                        title: 'Open PDFs',
+                        subtitle: 'View & manage',
+                        gradientIndex: 1,
+                        rating: 4.8,
                         onPressed: _isLoading ? null : _pickAndViewPdf,
-                        isLoading: _isLoading,
                       ),
                       const SizedBox(height: 16),
-                      _ModernButton(
-                        icon: Icons.merge_type,
-                        label: 'Merge PDFs',
+
+                      // Merge PDFs Card
+                      _ModernCard(
+                        icon: Icons.merge_type_rounded,
+                        title: 'Merge PDFs',
+                        subtitle: 'Combine files',
+                        gradientIndex: 2,
+                        rating: 4.6,
                         onPressed: _isLoading
                             ? null
                             : () => Navigator.push(
@@ -512,12 +522,16 @@ Widget build(BuildContext context) {
                                     builder: (_) => const MergeScreen(),
                                   ),
                                 ),
-                        isLoading: _isLoading,
                       ),
                       const SizedBox(height: 16),
-                      _ModernButton(
-                        icon: Icons.tune,
-                        label: 'Compress PDFs',
+
+                      // Compress PDFs Card
+                      _ModernCard(
+                        icon: Icons.compress_rounded,
+                        title: 'Compress PDFs',
+                        subtitle: 'Reduce file size',
+                        gradientIndex: 0,
+                        rating: 4.7,
                         onPressed: _isLoading
                             ? null
                             : () => Navigator.push(
@@ -526,7 +540,6 @@ Widget build(BuildContext context) {
                                     builder: (_) => const CompressScreen(),
                                   ),
                                 ),
-                        isLoading: _isLoading,
                       ),
                     ],
                   ),
@@ -548,25 +561,29 @@ Widget build(BuildContext context) {
   );
 }}
 
-// Modern Button Widget
-class _ModernButton extends StatefulWidget {
+// Modern Card Widget - inspired by app store cards
+class _ModernCard extends StatefulWidget {
   final IconData icon;
-  final String label;
+  final String title;
+  final String subtitle;
+  final int gradientIndex;
+  final double rating;
   final VoidCallback? onPressed;
-  final bool isLoading;
 
-  const _ModernButton({
+  const _ModernCard({
     required this.icon,
-    required this.label,
+    required this.title,
+    required this.subtitle,
+    required this.gradientIndex,
+    required this.rating,
     this.onPressed,
-    this.isLoading = false,
   });
 
   @override
-  State<_ModernButton> createState() => _ModernButtonState();
+  State<_ModernCard> createState() => _ModernCardState();
 }
 
-class _ModernButtonState extends State<_ModernButton>
+class _ModernCardState extends State<_ModernCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
@@ -575,10 +592,10 @@ class _ModernButtonState extends State<_ModernButton>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 100),
+      duration: const Duration(milliseconds: 120),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.97).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.98).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
@@ -592,60 +609,209 @@ class _ModernButtonState extends State<_ModernButton>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     
+    // Get gradient based on index
+    final gradients = AppTheme.getGridGradients(context);
+    final gradient = gradients[widget.gradientIndex % gradients.length];
+    
+    // Neumorphic colors based on theme
+    final baseColor = isDark 
+        ? const Color(0xFF2C2C2C)
+        : const Color(0xFFE0E5EC);
+    final lightShadow = isDark
+        ? Colors.white.withOpacity(0.05)
+        : Colors.white.withOpacity(0.7);
+    final darkShadow = isDark
+        ? Colors.black.withOpacity(0.5)
+        : Colors.black.withOpacity(0.15);
+
     return GestureDetector(
       onTapDown: widget.onPressed != null ? (_) => _controller.forward() : null,
-      onTapUp: widget.onPressed != null ? (_) => _controller.reverse() : null,
+      onTapUp: widget.onPressed != null
+          ? (_) {
+              _controller.reverse();
+              widget.onPressed?.call();
+            }
+          : null,
       onTapCancel: widget.onPressed != null ? () => _controller.reverse() : null,
       child: ScaleTransition(
         scale: _scaleAnimation,
         child: Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(maxWidth: 400),
+          height: 100,
+          margin: const EdgeInsets.symmetric(vertical: 2),
           decoration: BoxDecoration(
-            color: widget.onPressed == null
-                ? theme.colorScheme.surfaceContainerHighest.withOpacity(0.5)
-                : theme.colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: widget.onPressed == null
-                  ? theme.colorScheme.outline.withOpacity(0.2)
-                  : theme.colorScheme.primary.withOpacity(0.3),
-              width: 1,
-            ),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.onPressed,
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      widget.icon,
-                      color: widget.onPressed == null
-                          ? theme.colorScheme.onSurface.withOpacity(0.4)
-                          : theme.colorScheme.onPrimaryContainer,
-                      size: 24,
+            borderRadius: BorderRadius.circular(20),
+            color: baseColor,
+            // Neumorphic outer shadows
+            boxShadow: widget.onPressed != null
+                ? [
+                    // Top-left light shadow (raised effect)
+                    BoxShadow(
+                      color: lightShadow,
+                      offset: const Offset(-6, -6),
+                      blurRadius: 12,
+                      spreadRadius: 0,
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      widget.label,
-                      style: TextStyle(
-                        color: widget.onPressed == null
-                            ? theme.colorScheme.onSurface.withOpacity(0.4)
-                            : theme.colorScheme.onPrimaryContainer,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.2,
-                      ),
+                    // Bottom-right dark shadow (depth effect)
+                    BoxShadow(
+                      color: darkShadow,
+                      offset: const Offset(6, 6),
+                      blurRadius: 12,
+                      spreadRadius: 0,
+                    ),
+                  ]
+                : [
+                    // Disabled state - subtle inset shadow
+                    BoxShadow(
+                      color: darkShadow.withOpacity(0.3),
+                      offset: const Offset(2, 2),
+                      blurRadius: 4,
+                      spreadRadius: 0,
                     ),
                   ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              children: [
+                // Gradient Background
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: widget.onPressed != null
+                        ? gradient
+                        : LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                              theme.colorScheme.surfaceContainerHighest.withOpacity(0.7),
+                            ],
+                          ),
+                  ),
                 ),
-              ),
+                
+                // Inner neumorphic highlight (top-left)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.white.withOpacity(0.1),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Content
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: widget.onPressed,
+                    splashColor: Colors.white.withOpacity(0.15),
+                    highlightColor: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      child: Row(
+                        children: [
+                          // Left side - Icon with neumorphic effect
+                          Container(
+                            width: 70,
+                            height: 70,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white.withOpacity(0.3),
+                                  Colors.white.withOpacity(0.1),
+                                ],
+                              ),
+                              boxShadow: [
+                                // Inner shadow effect for icon container
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  offset: const Offset(2, 2),
+                                  blurRadius: 4,
+                                  spreadRadius: -1,
+                                ),
+                                BoxShadow(
+                                  color: Colors.white.withOpacity(0.1),
+                                  offset: const Offset(-2, -2),
+                                  blurRadius: 4,
+                                  spreadRadius: -1,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              widget.icon,
+                              size: 40,
+                              color: Colors.white,
+                            ),
+                          ),
+                          
+                          const SizedBox(width: 16),
+                          
+                          // Right side - Text content
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Title with subtle shadow
+                                Text(
+                                  widget.title,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.3,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withOpacity(0.3),
+                                        offset: const Offset(1, 1),
+                                        blurRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                
+                                // Subtitle
+                                Text(
+                                  widget.subtitle,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.85),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        offset: const Offset(0.5, 0.5),
+                                        blurRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

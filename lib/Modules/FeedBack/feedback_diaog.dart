@@ -23,7 +23,7 @@ class FeedbackDialog {
               ),
               title: Text(
                 "We value your feedback 💬",
-                style: Tools.h2(context),
+                style: Tools.h2(context).copyWith(color: Colors.black),
               ),
               content: isLoading
                   ? const SizedBox(
@@ -39,7 +39,7 @@ class FeedbackDialog {
                       TextField(
                           controller: _controller,
                           maxLines: 5,
-                          style: Tools.h3(context),
+                          style: Tools.h3(context).copyWith(color: Colors.black),
                           decoration: const InputDecoration(
                             hintText: "Type your feedback here...",
                             border: OutlineInputBorder(),
@@ -48,7 +48,7 @@ class FeedbackDialog {
                       TextField(
                           controller: _nameController,
                           maxLines: 1,
-                          style: Tools.h3(context),
+                          style: Tools.h3(context).copyWith(color: Colors.black),
                           decoration: const InputDecoration(
                             hintText: "Your Name",
                             border: OutlineInputBorder(),

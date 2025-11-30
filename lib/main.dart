@@ -5,6 +5,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'Services/pdf_viewer_service.dart';
 import 'Screens/home_screen.dart';
 import 'constants/app_constants.dart';
+import 'Utils/app_theme.dart';
 
 final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
 String? _pendingPdfPath;
@@ -70,7 +71,7 @@ void main() async {
 
 class DocuScanApp extends StatelessWidget {
   const DocuScanApp({super.key});
-
+  
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -78,18 +79,34 @@ class DocuScanApp extends StatelessWidget {
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue, 
-          brightness: Brightness.dark,
-        ),
-      ),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
       home: const HomeScreen(),
     );
   }
 }
+// class DocuScanApp extends StatelessWidget {
+//   const DocuScanApp({super.key});
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       navigatorKey: _navKey,
+//       title: AppConstants.appName,
+//       debugShowCheckedModeBanner: false,
+//       themeMode: ThemeMode.system,
+//       theme: ThemeData(
+//         useMaterial3: true,
+//         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+//       ),
+//       darkTheme: ThemeData(
+//         useMaterial3: true,
+//         colorScheme: ColorScheme.fromSeed(
+//           seedColor: Colors.blue, 
+//           brightness: Brightness.dark,
+//         ),
+//       ),
+//       home: const HomeScreen(),
+//     );
+//   }
+// }
