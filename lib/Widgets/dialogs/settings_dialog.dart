@@ -1,3 +1,4 @@
+import 'package:docu_scan/Utils/tools.dart';
 import 'package:flutter/material.dart';
 
 class SettingsDialog extends StatefulWidget {
@@ -43,7 +44,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text("Close"),
+          child: Text("Close", style: Tools.h3(context).copyWith(color: Theme.of(context).colorScheme.inverseSurface),),
         ),
       ],
     );

@@ -1,7 +1,7 @@
 name: docu_scan
 description: A professional document scanner app with PDF and image export capabilities.
 
-version: 1.3.1+11
+version: 1.3.2+12
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -45,6 +45,14 @@ flutter:
   uses-material-design: true
   # assets:
   #   - assets/
+  
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/poppins.ttf
+    - family: Oswald
+      fonts:
+        - asset: assets/fonts/oswald.ttf
 
 flutter_launcher_icons:
   android: "launcher_icon"

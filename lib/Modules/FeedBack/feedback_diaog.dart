@@ -37,23 +37,48 @@ class FeedbackDialog {
                       mainAxisSize: MainAxisSize.min,
                     children: [
                       TextField(
-                          controller: _controller,
-                          maxLines: 5,
-                          style: Tools.h3(context).copyWith(color: Colors.black),
-                          decoration: const InputDecoration(
-                            hintText: "Type your feedback here...",
-                            border: OutlineInputBorder(),
-                          ),
+                      controller: _controller,
+                      maxLines: 5,
+                      style: Tools.h3(context).copyWith(color: Colors.black),
+                      cursorColor: Colors.black,
+                      decoration: const InputDecoration(
+                        hintText: "Type your feedback here...",
+                        
+                        filled: true,
+                        fillColor: Colors.white,
+                        hintStyle: TextStyle(color: Colors.black54),
+                        border: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
                         ),
+                        enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
+                        ),
+                      ),
+                      ),
                       TextField(
-                          controller: _nameController,
-                          maxLines: 1,
-                          style: Tools.h3(context).copyWith(color: Colors.black),
-                          decoration: const InputDecoration(
-                            hintText: "Your Name",
-                            border: OutlineInputBorder(),
-                          ),
+                      controller: _nameController,
+                      maxLines: 1,
+                      style: Tools.h3(context).copyWith(color: Colors.black),
+                      cursorColor: Colors.black,
+                      decoration: const InputDecoration(
+                        hintText: "Your Name",
+                        hintStyle: TextStyle(color: Colors.black54),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
                         ),
+                        enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
+                        ),
+                      ),
+                      ),
                     ],
                   ),
               actions: isLoading

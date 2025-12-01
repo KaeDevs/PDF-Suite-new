@@ -10,7 +10,7 @@ import 'Utils/app_theme.dart';
 final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
 String? _pendingPdfPath;
 
-void main() async {
+void main() async {   
   WidgetsFlutterBinding.ensureInitialized();
 
   SystemChrome.setSystemUIOverlayStyle(

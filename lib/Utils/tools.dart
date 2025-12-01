@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 class Tools {
-  // Headings (Theme-based colors)
+  // Headings (Theme-based colors with Poppins font)
   static TextStyle h1(BuildContext context,) {
     final textScale = MediaQuery.of(context).textScaler;
     return TextStyle(
-    
-        fontSize: 30 * textScale.scale(30)  ,
+        fontSize: 30 * textScale.scale(30),
         fontWeight: FontWeight.bold,
+        fontFamily: 'Poppins',
         color: Theme.of(context).textTheme.titleLarge?.color,
       );
   }
@@ -15,35 +15,52 @@ class Tools {
   static TextStyle h2(BuildContext context) => TextStyle(
         fontSize: 27,
         fontWeight: FontWeight.bold,
+        fontFamily: 'Poppins',
         color: Theme.of(context).colorScheme.onPrimary,
       );
 
   static TextStyle h3(BuildContext context) { 
-    // final textScale = MediaQuery.of(context).textScaleFactor;
     return TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w900,
+        fontFamily: 'Poppins',
         color: Theme.of(context).colorScheme.onPrimary,
       );
   }
-  // Oswald-styled numeric value (still dynamic color)
-  // static TextStyle oswaldValue(BuildContext context) => TextStyle(
-  //       fontSize: 28,
-  //       fontWeight: FontWeight.bold,
-  //       fontFamily: 'Oswald',
-  //       color: Theme.of(context).colorScheme.onPrimary,
-  //     );
 
-  // Themed button style
-  // static ButtonStyle buttonStyle(BuildContext context, bool isActive) {
-  //   final colorScheme = Theme.of(context).colorScheme;
-  //   return TextButton.styleFrom(
-  //     foregroundColor: isActive ? colorScheme.onSurface : Colors.grey[600],
-  //     backgroundColor: isActive ? colorScheme.surfaceContainerHighest : Colors.grey[300],
-  //     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-  //     shape: RoundedRectangleBorder(
-  //       borderRadius: BorderRadius.circular(5),
-  //     ),
-  //   );
-  // }
+  // Oswald-styled text for numbers and special emphasis
+  static TextStyle oswaldText(BuildContext context, {
+    double fontSize = 24,
+    FontWeight fontWeight = FontWeight.bold,
+    Color? color,
+  }) => TextStyle(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        fontFamily: 'Oswald',
+        color: color ?? Theme.of(context).colorScheme.onPrimary,
+      );
+
+  // Poppins body text
+  static TextStyle bodyText(BuildContext context, {
+    double fontSize = 16,
+    FontWeight fontWeight = FontWeight.normal,
+    Color? color,
+  }) => TextStyle(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        fontFamily: 'Poppins',
+        color: color ?? Theme.of(context).textTheme.bodyLarge?.color,
+      );
+
+  // Poppins subtitle text
+  static TextStyle subtitle(BuildContext context, {
+    double fontSize = 14,
+    FontWeight fontWeight = FontWeight.w500,
+    Color? color,
+  }) => TextStyle(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        fontFamily: 'Poppins',
+        color: color ?? Theme.of(context).textTheme.bodyMedium?.color,
+      );
 }

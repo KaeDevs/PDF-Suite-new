@@ -348,7 +348,8 @@ Widget build(BuildContext context) {
                       child: _ModernActionButton(
                         label: 'Export as Images',
                         icon: Icons.image_outlined,
-                        isPrimary: false,
+                        isPrimary: true,
+
                         onPressed: _isLoading ? null : _exportImagesWithAd,
                       ),
                     ),
@@ -415,22 +416,24 @@ Widget build(BuildContext context) {
                           _settings.documentName ?? "Name",
                           style: TextStyle(
                             fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.onSurface,
+                            fontWeight: FontWeight.w900,
+                            fontFamily: "Oswald",
+
+                            color: Colors.white,
                           ),
                         ),
                         const SizedBox(width: 6),
                         Icon(
                           Icons.edit_outlined,
                           size: 18,
-                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          color: Colors.white,
                         ),
                       ],
                     ),
                   )
             : Text(
                 "PDF Suite",
-                style: Tools.h3(context).copyWith(color: theme.colorScheme.onSurface,fontSize: 22)
+                style: Tools.h2(context).copyWith(fontWeight: FontWeight.w900,fontFamily: "Oswald",color: Colors.white,fontSize: 22)
               ),
         centerTitle: true,
         actions: [
@@ -501,7 +504,7 @@ Widget build(BuildContext context) {
                         icon: Icons.picture_as_pdf_rounded,
                         title: 'Open PDFs',
                         subtitle: 'View & manage',
-                        gradientIndex: 1,
+                        gradientIndex: 0,
                         rating: 4.8,
                         onPressed: _isLoading ? null : _pickAndViewPdf,
                       ),
@@ -512,7 +515,7 @@ Widget build(BuildContext context) {
                         icon: Icons.merge_type_rounded,
                         title: 'Merge PDFs',
                         subtitle: 'Combine files',
-                        gradientIndex: 2,
+                        gradientIndex: 0,
                         rating: 4.6,
                         onPressed: _isLoading
                             ? null
@@ -615,16 +618,22 @@ class _ModernCardState extends State<_ModernCard>
     final gradients = AppTheme.getGridGradients(context);
     final gradient = gradients[widget.gradientIndex % gradients.length];
     
-    // Neumorphic colors based on theme
-    final baseColor = isDark 
-        ? const Color(0xFF2C2C2C)
-        : const Color(0xFFE0E5EC);
-    final lightShadow = isDark
-        ? Colors.white.withOpacity(0.05)
-        : Colors.white.withOpacity(0.7);
-    final darkShadow = isDark
-        ? Colors.black.withOpacity(0.5)
-        : Colors.black.withOpacity(0.15);
+    // Theme-aware colors
+    final cardBackground = isDark 
+        ? AppTheme.darkSurface  // Dark red surface for dark mode
+        : Colors.white;         // White for light mode
+    
+    final textColor = isDark
+        ? AppTheme.darkOnSurface  // Light pinkish text for dark mode
+        : AppTheme.lightPrimary;   // Crimson red for light mode
+    
+    final subtitleColor = isDark
+        ? AppTheme.darkOnSurface.withOpacity(0.7)
+        : AppTheme.lightPrimary.withOpacity(0.7);
+    
+    final borderColor = isDark
+        ? Colors.white.withOpacity(0.1)
+        : Colors.grey.withOpacity(0.2);
 
     return GestureDetector(
       onTapDown: widget.onPressed != null ? (_) => _controller.forward() : null,
@@ -639,179 +648,122 @@ class _ModernCardState extends State<_ModernCard>
         scale: _scaleAnimation,
         child: Container(
           height: 100,
-          margin: const EdgeInsets.symmetric(vertical: 2),
+          
+          margin: const EdgeInsets.symmetric(vertical: 2, ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            color: baseColor,
-            // Neumorphic outer shadows
+            color: cardBackground,
+            // border: Border.all(
+            //   color: borderColor,
+            //   width: 1.5,
+            // ),
             boxShadow: widget.onPressed != null
                 ? [
-                    // Top-left light shadow (raised effect)
                     BoxShadow(
-                      color: lightShadow,
-                      offset: const Offset(-6, -6),
-                      blurRadius: 12,
+                      color: isDark
+                          ? Colors.black.withOpacity(0.5)
+                          : Colors.black.withOpacity(0.1),
+                      offset: const Offset(0, 8),
+                      blurRadius: 24,
                       spreadRadius: 0,
                     ),
-                    // Bottom-right dark shadow (depth effect)
                     BoxShadow(
-                      color: darkShadow,
-                      offset: const Offset(6, 6),
+                      color: isDark
+                          ? Colors.black.withOpacity(0.3)
+                          : Colors.black.withOpacity(0.05),
+                      offset: const Offset(0, 4),
                       blurRadius: 12,
                       spreadRadius: 0,
                     ),
                   ]
                 : [
-                    // Disabled state - subtle inset shadow
                     BoxShadow(
-                      color: darkShadow.withOpacity(0.3),
-                      offset: const Offset(2, 2),
-                      blurRadius: 4,
+                      color: isDark
+                          ? Colors.black.withOpacity(0.3)
+                          : Colors.black.withOpacity(0.05),
+                      offset: const Offset(0, 4),
+                      blurRadius: 8,
                       spreadRadius: 0,
                     ),
                   ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              children: [
-                // Gradient Background
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: widget.onPressed != null
-                        ? gradient
-                        : LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                              theme.colorScheme.surfaceContainerHighest.withOpacity(0.7),
-                            ],
-                          ),
-                  ),
-                ),
-                
-                // Inner neumorphic highlight (top-left)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 50,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.white.withOpacity(0.1),
-                          Colors.transparent,
-                        ],
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: widget.onPressed,
+                splashColor: isDark
+                    ? Colors.white.withOpacity(0.1)
+                    : AppTheme.lightPrimary.withOpacity(0.1),
+                highlightColor: isDark
+                    ? Colors.white.withOpacity(0.05)
+                    : AppTheme.lightPrimary.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Row(
+                    children: [
+                      // Left side - Icon with gradient container
+                      Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: gradient,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(isDark ? 0.3 : 0.15),
+                              offset: const Offset(0, 4),
+                              blurRadius: 8,
+                              spreadRadius: 0,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          widget.icon,
+                          size: 40,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-                
-                // Content
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: widget.onPressed,
-                    splashColor: Colors.white.withOpacity(0.15),
-                    highlightColor: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                      child: Row(
-                        children: [
-                          // Left side - Icon with neumorphic effect
-                          Container(
-                            width: 70,
-                            height: 70,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.white.withOpacity(0.3),
-                                  Colors.white.withOpacity(0.1),
-                                ],
-                              ),
-                              boxShadow: [
-                                // Inner shadow effect for icon container
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  offset: const Offset(2, 2),
-                                  blurRadius: 4,
-                                  spreadRadius: -1,
-                                ),
-                                BoxShadow(
-                                  color: Colors.white.withOpacity(0.1),
-                                  offset: const Offset(-2, -2),
-                                  blurRadius: 4,
-                                  spreadRadius: -1,
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              widget.icon,
-                              size: 40,
-                              color: Colors.white,
-                            ),
-                          ),
-                          
-                          const SizedBox(width: 16),
-                          
-                          // Right side - Text content
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // Title with subtle shadow
-                                Text(
-                                  widget.title,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.3,
-                                    shadows: [
-                                      Shadow(
-                                        color: Colors.black.withOpacity(0.3),
-                                        offset: const Offset(1, 1),
-                                        blurRadius: 2,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
+                      
+                      const SizedBox(width: 16),
+                      
+                      // Right side - Text content
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Title
+                            Text(
+                              widget.title,
+                              style: Tools.h3(context).copyWith(
+                                color: textColor,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
                                 
-                                // Subtitle
-                                Text(
-                                  widget.subtitle,
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.85),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    shadows: [
-                                      Shadow(
-                                        color: Colors.black.withOpacity(0.2),
-                                        offset: const Offset(0.5, 0.5),
-                                        blurRadius: 1,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                                letterSpacing: 0.3,
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 6),
+                            
+                            // Subtitle
+                            Text(
+                              widget.subtitle,
+                              style: Tools.subtitle(context).copyWith(
+                                color: subtitleColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -819,7 +771,6 @@ class _ModernCardState extends State<_ModernCard>
     );
   }
 }
-
 // Modern Action Button (for bottom bar)
 class _ModernActionButton extends StatelessWidget {
   final String label;
@@ -838,42 +789,57 @@ class _ModernActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    if (isPrimary) {
-      return FilledButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 20),
-        label: Text(label),
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: isPrimary 
+            ? AppTheme.getPrimaryGradient(context)
+            : AppTheme.getSecondaryGradient(context),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withOpacity(0.3),
+            offset: const Offset(0, 4),
+            blurRadius: 12,
+            spreadRadius: 0,
           ),
-          textStyle: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(12),
+          splashColor: Colors.white.withOpacity(0.2),
+          highlightColor: Colors.white.withOpacity(0.1),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.primary,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      );
-    } else {
-      return OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 20),
-        label: Text(label),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          side: BorderSide(
-            color: theme.colorScheme.outline,
-            width: 1.5,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
-    }
+      ),
+    );
   }
 }
