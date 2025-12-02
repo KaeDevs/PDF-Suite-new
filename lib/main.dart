@@ -66,7 +66,7 @@ void main() async {
       }
     }
   });
-  runApp(const DocuScanApp());
+  runApp(const SafeArea(child: const DocuScanApp()));
 }
 
 class DocuScanApp extends StatelessWidget {

@@ -22,6 +22,7 @@ import '../widgets/scan_grid.dart';
 import 'package:path/path.dart' as p;
 import 'merge_screen.dart';
 import 'compress_screen.dart';
+import 'numbered_pdf_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -433,7 +434,12 @@ Widget build(BuildContext context) {
                   )
             : Text(
                 "PDF Suite",
-                style: Tools.h2(context).copyWith(fontWeight: FontWeight.w900,fontFamily: "Oswald",color: Colors.white,fontSize: 22)
+                style: Tools.h2(context).copyWith(
+                  fontWeight: FontWeight.w900,
+                  fontFamily: "Oswald",
+                  color: Colors.white,
+                  fontSize: 22,
+                ),
               ),
         centerTitle: true,
         actions: [
@@ -523,6 +529,24 @@ Widget build(BuildContext context) {
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => const MergeScreen(),
+                                  ),
+                                ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Numbered PDF Card
+                      _ModernCard(
+                        icon: Icons.format_list_numbered_rounded,
+                        title: 'Numbered PDF',
+                        subtitle: 'Add page numbers',
+                        gradientIndex: 0,
+                        rating: 4.6,
+                        onPressed: _isLoading
+                            ? null
+                            : () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const NumberedPdfScreen(),
                                   ),
                                 ),
                       ),
@@ -631,9 +655,9 @@ class _ModernCardState extends State<_ModernCard>
         ? AppTheme.darkOnSurface.withOpacity(0.7)
         : AppTheme.lightPrimary.withOpacity(0.7);
     
-    final borderColor = isDark
-        ? Colors.white.withOpacity(0.1)
-        : Colors.grey.withOpacity(0.2);
+  // final borderColor = isDark
+  //     ? Colors.white.withOpacity(0.1)
+  //     : Colors.grey.withOpacity(0.2);
 
     return GestureDetector(
       onTapDown: widget.onPressed != null ? (_) => _controller.forward() : null,
