@@ -109,11 +109,36 @@ class NumberedPdfService {
           final srcPage = src.pages[i];
           final newPage = result.pages.add();
 
+          // Get source and destination sizes
+          final srcSize = srcPage.size;
+          final dstSize = newPage.size;
+          
+          // Calculate aspect ratios
+          final srcAspect = srcSize.width / srcSize.height;
+          final dstAspect = dstSize.width / dstSize.height;
+          
+          // Calculate scale to fit (maintaining aspect ratio)
+          double scale;
+          double offsetX = 0;
+          double offsetY = 0;
+          
+          if (srcAspect > dstAspect) {
+            // Source is wider - fit to width
+            scale = dstSize.width / srcSize.width;
+            final scaledHeight = srcSize.height * scale;
+            offsetY = (dstSize.height - scaledHeight) / 2;
+          } else {
+            // Source is taller - fit to height
+            scale = dstSize.height / srcSize.height;
+            final scaledWidth = srcSize.width * scale;
+            offsetX = (dstSize.width - scaledWidth) / 2;
+          }
+
           final PdfTemplate template = srcPage.createTemplate();
           newPage.graphics.drawPdfTemplate(
             template,
-            const ui.Offset(0, 0),
-            ui.Size(newPage.size.width, newPage.size.height),
+            ui.Offset(offsetX -30, offsetY),
+            ui.Size(srcSize.width * scale, srcSize.height * scale),
           );
 
           if (insertBlankAfterEveryPage) {
@@ -135,10 +160,40 @@ class NumberedPdfService {
         final bytes = await File(path).readAsBytes();
         final img = PdfBitmap(bytes);
         final page = result.pages.add();
+        
+        // Get image and page dimensions
+        final imgWidth = img.width.toDouble();
+        final imgHeight = img.height.toDouble();
+        final pageWidth = page.size.width;
+        final pageHeight = page.size.height;
+        
+        // Calculate aspect ratios
+        final imgAspect = imgWidth / imgHeight;
+        final pageAspect = pageWidth / pageHeight;
+        
+        // Calculate size to fit (maintaining aspect ratio)
+        double fitWidth;
+        double fitHeight;
+        double offsetX = -100;
+        double offsetY = 0;
+        
+        if (imgAspect > pageAspect) {
+          // Image is wider - fit to width
+          fitWidth = pageWidth;
+          fitHeight = pageWidth / imgAspect;
+          offsetY = (pageHeight - fitHeight) / 2;
+        } else {
+          // Image is taller - fit to height
+          fitHeight = pageHeight;
+          fitWidth = pageHeight * imgAspect;
+          offsetX = (pageWidth - fitWidth) / 2;
+        }
+        
         page.graphics.drawImage(
           img,
-          ui.Rect.fromLTWH(0, 0, page.size.width, page.size.height),
+          ui.Rect.fromLTWH(offsetX - 29, offsetY, fitWidth, fitHeight),
         );
+        
         if (insertBlankAfterEveryPage) {
           _addBlankPage(likeSize: ui.Size(page.size.width, page.size.height));
         }

@@ -23,6 +23,7 @@ import 'package:path/path.dart' as p;
 import 'merge_screen.dart';
 import 'compress_screen.dart';
 import 'numbered_pdf_screen.dart';
+import 'ocr_pdf_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -535,22 +536,22 @@ Widget build(BuildContext context) {
                       const SizedBox(height: 16),
 
                       // Numbered PDF Card
-                      _ModernCard(
-                        icon: Icons.format_list_numbered_rounded,
-                        title: 'Numbered PDF',
-                        subtitle: 'Add page numbers',
-                        gradientIndex: 0,
-                        rating: 4.6,
-                        onPressed: _isLoading
-                            ? null
-                            : () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const NumberedPdfScreen(),
-                                  ),
-                                ),
-                      ),
-                      const SizedBox(height: 16),
+                      // _ModernCard(
+                      //   icon: Icons.format_list_numbered_rounded,
+                      //   title: 'Numbered PDF',
+                      //   subtitle: 'Add page numbers',
+                      //   gradientIndex: 0,
+                      //   rating: 4.6,
+                      //   onPressed: _isLoading
+                      //       ? null
+                      //       : () => Navigator.push(
+                      //             context,
+                      //             MaterialPageRoute(
+                      //               builder: (_) => const NumberedPdfScreen(),
+                      //             ),
+                      //           ),
+                      // ),
+                      // const SizedBox(height: 16),
 
                       // Compress PDFs Card
                       _ModernCard(
@@ -565,6 +566,24 @@ Widget build(BuildContext context) {
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => const CompressScreen(),
+                                  ),
+                                ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // OCR Card (Make PDF Searchable)
+                      _ModernCard(
+                        icon: Icons.auto_fix_high_rounded,
+                        title: 'OCR',
+                        subtitle: 'Extract text from images',
+                        gradientIndex: 0,
+                        rating: 4.8,
+                        onPressed: _isLoading
+                            ? null
+                            : () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const OcrPdfScreen(),
                                   ),
                                 ),
                       ),

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:docu_scan/Utils/tools.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfx/pdfx.dart';
@@ -137,15 +138,16 @@ class _NumberedPdfScreenState extends State<NumberedPdfScreen> with SingleTicker
           if (_tabController.index == 0)
             IconButton(
               onPressed: _showViewModePicker,
-              icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+              icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view, color: Colors.white,),
               tooltip: 'View mode',
             ),
         ],
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.photo_library), text: 'Pages'),
-            Tab(icon: Icon(Icons.settings), text: 'Settings'),
+          
+          tabs: [
+            Tab(icon: const Icon(Icons.photo_library, color: Colors.white,), child: Text("Pages", style: Tools.h3(context).copyWith(fontSize: 15),), ),
+            Tab(icon: const Icon(Icons.settings, color: Colors.white,), child: Text("Settings", style: Tools.h3(context).copyWith(fontSize: 15),), ),
           ],
         ),
       ),
@@ -443,56 +445,59 @@ class _NumberedPdfScreenState extends State<NumberedPdfScreen> with SingleTicker
       context: context,
       builder: (context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  'View Mode',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: Icon(
-                  _isGridView ? Icons.radio_button_off : Icons.radio_button_checked,
-                  color: !_isGridView ? Theme.of(context).primaryColor : null,
-                ),
-                title: const Text('List View'),
-                subtitle: const Text('Traditional list with details'),
-                onTap: () => Navigator.pop(context, {'mode': 'list'}),
-              ),
-              ListTile(
-                leading: Icon(
-                  !_isGridView ? Icons.radio_button_off : Icons.radio_button_checked,
-                  color: _isGridView ? Theme.of(context).primaryColor : null,
-                ),
-                title: const Text('Grid View'),
-                subtitle: const Text('Visual grid layout'),
-                onTap: () => Navigator.pop(context, {'mode': 'grid'}),
-              ),
-              if (_isGridView) ...[
-                const Divider(height: 1),
+          child: Flexible(
+            fit: FlexFit.loose,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  padding: EdgeInsets.all(16.0),
                   child: Text(
-                    'Items per row',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    'View Mode',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
-                for (final n in [2, 3, 4, 5])
-                  ListTile(
-                    leading: Icon(
-                      n == _gridCount ? Icons.radio_button_checked : Icons.radio_button_off,
-                      color: n == _gridCount ? Theme.of(context).primaryColor : null,
-                    ),
-                    title: Text('$n per row'),
-                    onTap: () => Navigator.pop(context, {'mode': 'grid', 'count': n}),
+                const Divider(height: 1),
+                ListTile(
+                  leading: Icon(
+                    _isGridView ? Icons.radio_button_off : Icons.radio_button_checked,
+                    color: !_isGridView ? Theme.of(context).primaryColor : null,
                   ),
+                  title: const Text('List View'),
+                  subtitle: const Text('Traditional list with details'),
+                  onTap: () => Navigator.pop(context, {'mode': 'list'}),
+                ),
+                ListTile(
+                  leading: Icon(
+                    !_isGridView ? Icons.radio_button_off : Icons.radio_button_checked,
+                    color: _isGridView ? Theme.of(context).primaryColor : null,
+                  ),
+                  title: const Text('Grid View'),
+                  subtitle: const Text('Visual grid layout'),
+                  onTap: () => Navigator.pop(context, {'mode': 'grid'}),
+                ),
+                if (_isGridView) ...[
+                  const Divider(height: 1),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: Text(
+                      'Items per row',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  for (final n in [2, 3, 4, 5])
+                    ListTile(
+                      leading: Icon(
+                        n == _gridCount ? Icons.radio_button_checked : Icons.radio_button_off,
+                        color: n == _gridCount ? Theme.of(context).primaryColor : null,
+                      ),
+                      title: Text('$n per row'),
+                      onTap: () => Navigator.pop(context, {'mode': 'grid', 'count': n}),
+                    ),
+                ],
+                const SizedBox(height: 8),
               ],
-              const SizedBox(height: 8),
-            ],
+            ),
           ),
         );
       },
