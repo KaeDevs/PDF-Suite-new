@@ -60,23 +60,26 @@ class MlKitOcrEngine implements OcrEngine {
       print('🔍 ML Kit OCR Results:');
       print('  Total text length: ${recognizedText.text.length}');
       print('  Number of blocks: ${recognizedText.blocks.length}');
-      print('  First 200 chars: ${recognizedText.text.substring(0, recognizedText.text.length > 200 ? 200 : recognizedText.text.length)}');
       
       final blocks = <OcrTextBlock>[];
+      // Use word-level granularity for precise text positioning (industry standard)
       for (final block in recognizedText.blocks) {
-        final rect = block.boundingBox;
-        print('  Block: "${block.text.substring(0, block.text.length > 50 ? 50 : block.text.length)}..." at (${rect.left}, ${rect.top}) size ${rect.width}x${rect.height}');
-        blocks.add(
-          OcrTextBlock(
-            text: block.text,
-            boundingBox: OcrBoundingBox(
-              left: rect.left,
-              top: rect.top,
-              width: rect.width,
-              height: rect.height,
-            ),
-          ),
-        );
+        for (final line in block.lines) {
+          for (final element in line.elements) {
+            final rect = element.boundingBox;
+            blocks.add(
+              OcrTextBlock(
+                text: element.text,
+                boundingBox: OcrBoundingBox(
+                  left: rect.left,
+                  top: rect.top,
+                  width: rect.width,
+                  height: rect.height,
+                ),
+              ),
+            );
+          }
+        }
       }
 
       return OcrResult(

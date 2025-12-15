@@ -281,6 +281,11 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
       await showModalBottomSheet(
         context: context,
         builder: (ctx) => ExportDialog(
+          onPreviewPdf: () async {
+            Navigator.pop(ctx);
+            // Open PDF for preview
+            // await (file);
+          },
           onSharePdf: () async {
             Navigator.pop(ctx);
             await FileService.shareFile(file, 'pdf');

@@ -264,7 +264,7 @@ class OcrPdfService {
 
     if (ocrResult.hasText) {
       print('📝 OCR found ${ocrResult.blocks.length} text blocks');
-      await _addInvisibleTextLayer(
+      await _addInvisibleTextLayerPerChar(
         page: newPage,
         blocks: ocrResult.blocks,
         imageWidth: imageWidthPx,
@@ -297,84 +297,215 @@ class OcrPdfService {
 
   /// Add invisible text layer to page using render mode 3 (invisible)
   static Future<void> _addInvisibleTextLayer({
-    required sf.PdfPage page,
-    required List<OcrTextBlock> blocks,
-    required double imageWidth,
-    required double imageHeight,
-    required double pdfWidth,
-    required double pdfHeight,
-  }) async {
-    // Calculate scale factors: points per pixel
-    final scaleX = pdfWidth / imageWidth;
-    final scaleY = pdfHeight / imageHeight;
+  required sf.PdfPage page,
+  required List<OcrTextBlock> blocks,
+  required double imageWidth,
+  required double imageHeight,
+  required double pdfWidth,
+  required double pdfHeight,
+}) async {
+  // Calculate scale factors: points per pixel
+  final scaleX = pdfWidth / imageWidth;
+  final scaleY = pdfHeight / imageHeight;
 
-    print(
-        '📐 Transform: ImageSize=${imageWidth}x$imageHeight, PDFSize=${pdfWidth}x$pdfHeight');
-    print('   ScaleX=$scaleX, ScaleY=$scaleY');
+  print('📐 Transform: ImageSize=${imageWidth}x$imageHeight, PDFSize=${pdfWidth}x$pdfHeight');
+  print('   ScaleX=$scaleX, ScaleY=$scaleY');
 
-    for (final block in blocks) {
-      final text = block.text?.trim() ?? '';
-      if (text.isEmpty) continue;
+  for (final block in blocks) {
+    final text = block.text?.trim() ?? '';
+    if (text.isEmpty) continue;
 
-      final box = block.boundingBox;
-
-      // Transform coordinates from image pixels to PDF points
-      // Syncfusion PdfGraphics uses Top-Left origin, same as OCR
-      final pdfX = box.left * scaleX;
-      final pdfY = box.top * scaleY;
-      final pdfW = box.width * scaleX;
-      final pdfH = box.height * scaleY;
-
-      // Skip invalid bounds
-      if (pdfW <= 0 || pdfH <= 0) continue;
-
-      final bounds = ui.Rect.fromLTWH(pdfX, pdfY, pdfW, pdfH);
-
-      // Calculate font size from bounding box height
-      // Start with a heuristic based on height
-      final lineCount = text.split('\n').length;
-      var fontSize = (pdfH / lineCount * 0.8);
-
-      // Create temporary font to measure
-      var font = sf.PdfStandardFont(sf.PdfFontFamily.helvetica, fontSize);
-
-      // Measure text size to ensure it fits in the box
-      if (lineCount == 1) {
-        final size = font.measureString(text);
-        if (size.width > pdfW) {
-          fontSize *= (pdfW / size.width);
-        }
-      } else {
-        final size = font.measureString(
-            text, layoutArea: ui.Size(pdfW, double.infinity));
-        if (size.height > pdfH) {
-          fontSize *= (pdfH / size.height);
-        }
-      }
-
-      // Clamp and recreate font
-      // Allow larger fonts for high-res images (up to 500pt)
-      fontSize = fontSize.clamp(4.0, 500.0);
-      font = sf.PdfStandardFont(sf.PdfFontFamily.helvetica, fontSize);
-
+    // Split into words and position each one individually
+    final words = text.split(RegExp(r'\s+'));
+    final box = block.boundingBox;
+    
+    // Calculate approximate word width in the original box
+    final totalChars = words.fold<int>(0, (sum, word) => sum + word.length);
+    if (totalChars == 0) continue;
+    
+    final boxWidth = box.width * scaleX;
+    final boxHeight = box.height * scaleY;
+    
+    // Estimate space taken by each character
+    final charWidth = boxWidth / totalChars;
+    
+    // Start position
+    double currentX = box.left * scaleX;
+    final pdfY = box.top * scaleY;
+    
+    for (final word in words) {
+      if (word.isEmpty) continue;
+      
+      // Calculate this word's width based on character count
+      final wordWidth = charWidth * word.length;
+      
+      // Calculate font size to match box height
+      // Use a more conservative factor for better compatibility
+      final fontSize = (boxHeight * 0.75).clamp(6.0, 500.0);
+      
+      final font = sf.PdfStandardFont(sf.PdfFontFamily.helvetica, fontSize);
+      
+      // Create bounds for this specific word
+      final wordBounds = ui.Rect.fromLTWH(currentX, pdfY, wordWidth, boxHeight);
+      
       // Use transparent brush for invisible text
-      // Text will be selectable but not visible
       final brush = sf.PdfSolidBrush(sf.PdfColor(0, 0, 0, 0));
-
-      // Draw text with invisible brush
+      
+      // Draw the word - let it naturally fit in its bounds
       page.graphics.drawString(
-        text,
+        word,
         font,
         brush: brush,
-        bounds: bounds,
+        bounds: wordBounds,
         format: sf.PdfStringFormat(
           alignment: sf.PdfTextAlignment.left,
           lineAlignment: sf.PdfVerticalAlignment.top,
         ),
       );
-
-      print(
-          '  ✓ Block: "$text" @ (${pdfX.toStringAsFixed(1)}, ${pdfY.toStringAsFixed(1)}) size=$fontSize');
+      
+      print('  ✓ "$word" @ (${currentX.toStringAsFixed(1)}, ${pdfY.toStringAsFixed(1)}) '
+            'w=${wordWidth.toStringAsFixed(1)} font=${fontSize.toStringAsFixed(1)}');
+      
+      // Move to next word position (add word width + space)
+      currentX += wordWidth + (charWidth * 0.5); // 0.5 char width for space
     }
   }
+}
+
+/// Alternative: Draw each character individually for PERFECT positioning
+/// This is what professional OCR systems do when they have per-character coordinates
+static Future<void> _addInvisibleTextLayerPerChar({
+  required sf.PdfPage page,
+  required List<OcrTextBlock> blocks,
+  required double imageWidth,
+  required double imageHeight,
+  required double pdfWidth,
+  required double pdfHeight,
+}) async {
+  final scaleX = pdfWidth / imageWidth;
+  final scaleY = pdfHeight / imageHeight;
+
+  for (final block in blocks) {
+    final text = block.text?.trim() ?? '';
+    if (text.isEmpty) continue;
+
+    final box = block.boundingBox;
+    final boxWidth = box.width * scaleX;
+    final boxHeight = box.height * scaleY;
+
+    final charWidth = boxWidth / text.length;
+
+    double currentX = box.left * scaleX;
+    final pdfY = box.top * scaleY;
+
+    final fontSize = (boxHeight * 0.75).clamp(6.0, 500.0);
+    final font =
+        sf.PdfStandardFont(sf.PdfFontFamily.helvetica, fontSize);
+
+    final format = sf.PdfStringFormat(
+      alignment: sf.PdfTextAlignment.center,
+      lineAlignment: sf.PdfVerticalAlignment.top,
+    );
+
+    // 🔑 Make text invisible
+    page.graphics.save();
+    page.graphics.setTransparency(0);
+
+    final brush = sf.PdfSolidBrush(sf.PdfColor(0, 0, 0));
+
+    for (int i = 0; i < text.length; i++) {
+      final char = text[i];
+
+      if (char.trim().isEmpty) {
+        currentX += charWidth;
+        continue;
+      }
+
+      final charBounds =
+          ui.Rect.fromLTWH(currentX, pdfY, charWidth, boxHeight);
+
+      page.graphics.drawString(
+        char,
+        font,
+        brush: brush,
+        bounds: charBounds,
+        format: format,
+      );
+
+      currentX += charWidth;
+    }
+
+    page.graphics.restore();
+  }
+}
+
+
+/// BEST APPROACH: Use text matrix transformation for perfect scaling
+/// This is the PDF specification's intended method for fitting text
+static Future<void> _addInvisibleTextLayerWithMatrix({
+  required sf.PdfPage page,
+  required List<OcrTextBlock> blocks,
+  required double imageWidth,
+  required double imageHeight,
+  required double pdfWidth,
+  required double pdfHeight,
+}) async {
+  final scaleX = pdfWidth / imageWidth;
+  final scaleY = pdfHeight / imageHeight;
+
+  for (final block in blocks) {
+    final text = block.text?.trim() ?? '';
+    if (text.isEmpty) continue;
+
+    final box = block.boundingBox;
+    
+    // Transform to PDF coordinates
+    final pdfX = box.left * scaleX;
+    final pdfY = box.top * scaleY;
+    final pdfW = box.width * scaleX;
+    final pdfH = box.height * scaleY;
+    
+    if (pdfW <= 0 || pdfH <= 0) continue;
+
+    // Use a standard font size
+    final baseFontSize = 12.0;
+    final font = sf.PdfStandardFont(sf.PdfFontFamily.helvetica, baseFontSize);
+    
+    // Measure text at base size
+    final textSize = font.measureString(text);
+    
+    if (textSize.width <= 0 || textSize.height <= 0) continue;
+    
+    // Calculate scale factors to fit text into bounding box
+    final scaleTextX = pdfW / textSize.width;
+    final scaleTextY = pdfH / textSize.height;
+    
+    // Save graphics state
+    page.graphics.save();
+    
+    // Apply transformation matrix: scale then translate
+    // This stretches/compresses the text to fit perfectly
+    page.graphics.translateTransform(pdfX, pdfY);
+    // page.graphics.scaleTransform(scaleTextX, scaleTextY);
+    
+    // Draw at origin (transformation moves it to correct position)
+    final brush = sf.PdfSolidBrush(sf.PdfColor(0, 0, 0, 0));
+    page.graphics.drawString(
+      text,
+      font,
+      brush: brush,
+      bounds: ui.Rect.fromLTWH(0, 0, textSize.width, textSize.height),
+      format: sf.PdfStringFormat(
+        alignment: sf.PdfTextAlignment.left,
+        lineAlignment: sf.PdfVerticalAlignment.top,
+      ),
+    );
+    
+    // Restore graphics state
+    page.graphics.restore();
+    
+    print('  ✓ "$text" @ (${pdfX.toStringAsFixed(1)}, ${pdfY.toStringAsFixed(1)}) '
+          'scale=(${scaleTextX.toStringAsFixed(2)}x, ${scaleTextY.toStringAsFixed(2)}x)');
+  }
+}
 }

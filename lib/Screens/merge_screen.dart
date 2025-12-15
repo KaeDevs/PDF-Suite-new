@@ -217,6 +217,10 @@ class _MergeScreenState extends State<MergeScreen> {
           await showModalBottomSheet(
             context: context,
             builder: (ctx) => ExportDialog(
+              onPreviewPdf: () async {
+                Navigator.pop(ctx);
+                // await FileService.openFile(file);
+              },
               onSharePdf: () async {
                 Navigator.pop(ctx);
                 await FileService.shareFile(file, 'pdf');
