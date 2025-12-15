@@ -172,12 +172,17 @@ class OcrPdfService {
     final imageWidthPx = (rendered.width ?? pdfxPage.width * 2).toDouble();
     final imageHeightPx = (rendered.height ?? pdfxPage.height * 2).toDouble();
 
-    // Calculate PDF page size from image dimensions
-    final pdfWidth = imageWidthPx * 72.0 / _dpi;
-    final pdfHeight = imageHeightPx * 72.0 / _dpi;
+    // Use image dimensions directly for PDF page size (1:1 mapping)
+    final pdfWidth = imageWidthPx;
+    final pdfHeight = imageHeightPx;
 
-    // Create page with calculated size
+    // Configure page settings
+    result.pageSettings.margins.all = 0;
     result.pageSettings.size = ui.Size(pdfWidth, pdfHeight);
+    result.pageSettings.orientation = pdfWidth > pdfHeight
+        ? sf.PdfPageOrientation.landscape
+        : sf.PdfPageOrientation.portrait;
+
     final newPage = result.pages.add();
 
     // Draw image
@@ -229,12 +234,17 @@ class OcrPdfService {
     final imageWidthPx = decodedImg.width.toDouble();
     final imageHeightPx = decodedImg.height.toDouble();
 
-    // Calculate PDF page size from image dimensions
-    final pdfWidth = imageWidthPx * 72.0 / _dpi;
-    final pdfHeight = imageHeightPx * 72.0 / _dpi;
+    // Use image dimensions directly for PDF page size (1:1 mapping)
+    final pdfWidth = imageWidthPx;
+    final pdfHeight = imageHeightPx;
 
-    // Create page with calculated size
+    // Configure page settings
+    result.pageSettings.margins.all = 0;
     result.pageSettings.size = ui.Size(pdfWidth, pdfHeight);
+    result.pageSettings.orientation = pdfWidth > pdfHeight
+        ? sf.PdfPageOrientation.landscape
+        : sf.PdfPageOrientation.portrait;
+
     final newPage = result.pages.add();
 
     // Draw image
@@ -321,12 +331,31 @@ class OcrPdfService {
       final bounds = ui.Rect.fromLTWH(pdfX, pdfY, pdfW, pdfH);
 
       // Calculate font size from bounding box height
-      // Estimate line count to avoid huge fonts for multi-line blocks
+      // Start with a heuristic based on height
       final lineCount = text.split('\n').length;
-      final fontSize = (pdfH / lineCount * 0.8).clamp(4.0, 72.0); // 0.8 factor for line spacing
+      var fontSize = (pdfH / lineCount * 0.8);
 
-      // Create font
-      final font = sf.PdfStandardFont(sf.PdfFontFamily.helvetica, fontSize);
+      // Create temporary font to measure
+      var font = sf.PdfStandardFont(sf.PdfFontFamily.helvetica, fontSize);
+
+      // Measure text size to ensure it fits in the box
+      if (lineCount == 1) {
+        final size = font.measureString(text);
+        if (size.width > pdfW) {
+          fontSize *= (pdfW / size.width);
+        }
+      } else {
+        final size = font.measureString(
+            text, layoutArea: ui.Size(pdfW, double.infinity));
+        if (size.height > pdfH) {
+          fontSize *= (pdfH / size.height);
+        }
+      }
+
+      // Clamp and recreate font
+      // Allow larger fonts for high-res images (up to 500pt)
+      fontSize = fontSize.clamp(4.0, 500.0);
+      font = sf.PdfStandardFont(sf.PdfFontFamily.helvetica, fontSize);
 
       // Use transparent brush for invisible text
       // Text will be selectable but not visible
