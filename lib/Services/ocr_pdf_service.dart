@@ -275,6 +275,71 @@ class OcrPdfService {
     }
   }
 
+  static Future<void> _addInvisibleTextLayerWithSpacing({
+  required sf.PdfPage page,
+  required List<OcrTextBlock> blocks,
+  required double imageWidth,
+  required double imageHeight,
+  required double pdfWidth,
+  required double pdfHeight,
+}) async {
+  final scaleX = pdfWidth / imageWidth;
+  final scaleY = pdfHeight / imageHeight;
+
+  for (final block in blocks) {
+    final text = block.text?.trim() ?? '';
+    if (text.isEmpty) continue;
+
+    final box = block.boundingBox;
+    final boxWidth = box.width * scaleX;
+    final boxHeight = box.height * scaleY;
+
+    final pdfX = box.left * scaleX;
+    final pdfY = box.top * scaleY;
+
+    // Calculate font size
+    final fontSize = (boxHeight * 0.75).clamp(6.0, 500.0);
+    final font = sf.PdfStandardFont(sf.PdfFontFamily.helvetica, fontSize);
+
+    // Measure text
+    final textSize = font.measureString(text);
+    
+    // Calculate character spacing to make text fit width
+    // This spreads characters naturally, not per-character positioning
+    var charSpacing = 0.0;
+    if (textSize.width > 0 && text.length > 1) {
+      final widthDiff = boxWidth - textSize.width;
+      charSpacing = widthDiff / (text.length - 1);
+      // Limit spacing to reasonable values to avoid extreme gaps
+      charSpacing = charSpacing.clamp(-2.0, 3.0);
+    }
+
+    // Make text invisible
+    page.graphics.save();
+    page.graphics.setTransparency(0);
+
+    final brush = sf.PdfSolidBrush(sf.PdfColor(0, 0, 0));
+    final bounds = ui.Rect.fromLTWH(pdfX, pdfY, boxWidth, boxHeight);
+
+    // Draw text as single unit with character spacing
+    page.graphics.drawString(
+      text,
+      font,
+      brush: brush,
+      bounds: bounds,
+      format: sf.PdfStringFormat(
+        alignment: sf.PdfTextAlignment.left,
+        lineAlignment: sf.PdfVerticalAlignment.top,
+        characterSpacing: charSpacing,
+      ),
+    );
+
+    page.graphics.restore();
+    
+    print('  ✓ "$text" spacing=${charSpacing.toStringAsFixed(2)}');
+  }
+}
+
   /// Preprocess image for better OCR
   static Future<Uint8List> _preprocessImage(Uint8List imageBytes) async {
     try {
@@ -458,54 +523,53 @@ static Future<void> _addInvisibleTextLayerWithMatrix({
     if (text.isEmpty) continue;
 
     final box = block.boundingBox;
-    
-    // Transform to PDF coordinates
+
+    // Transform image coords → PDF coords
     final pdfX = box.left * scaleX;
     final pdfY = box.top * scaleY;
     final pdfW = box.width * scaleX;
     final pdfH = box.height * scaleY;
-    
-    if (pdfW <= 0 || pdfH <= 0) continue;
 
-    // Use a standard font size
-    final baseFontSize = 12.0;
-    final font = sf.PdfStandardFont(sf.PdfFontFamily.helvetica, baseFontSize);
-    
-    // Measure text at base size
-    final textSize = font.measureString(text);
-    
-    if (textSize.width <= 0 || textSize.height <= 0) continue;
-    
-    // Calculate scale factors to fit text into bounding box
-    final scaleTextX = pdfW / textSize.width;
-    final scaleTextY = pdfH / textSize.height;
-    
-    // Save graphics state
-    page.graphics.save();
-    
-    // Apply transformation matrix: scale then translate
-    // This stretches/compresses the text to fit perfectly
-    page.graphics.translateTransform(pdfX, pdfY);
-    // page.graphics.scaleTransform(scaleTextX, scaleTextY);
-    
-    // Draw at origin (transformation moves it to correct position)
+    if (pdfW <= 1 || pdfH <= 1) continue;
+
+    // Base font size (matrix "unit size")
+    const baseFontSize = 12.0;
+    final baseFont =
+        sf.PdfStandardFont(sf.PdfFontFamily.helvetica, baseFontSize);
+
+    final baseSize = baseFont.measureString(text);
+    if (baseSize.width <= 0 || baseSize.height <= 0) continue;
+
+    // Matrix-equivalent scaling
+    final scaleTextX = pdfW / baseSize.width;
+    final scaleTextY = pdfH / baseSize.height;
+
+    // Convert vertical scale → font size
+    final finalFontSize =
+        (baseFontSize * scaleTextY).clamp(6.0, 400.0);
+
+    final font =
+        sf.PdfStandardFont(sf.PdfFontFamily.helvetica, finalFontSize);
+
     final brush = sf.PdfSolidBrush(sf.PdfColor(0, 0, 0, 0));
+
     page.graphics.drawString(
       text,
       font,
       brush: brush,
-      bounds: ui.Rect.fromLTWH(0, 0, textSize.width, textSize.height),
+      bounds: ui.Rect.fromLTWH(pdfX, pdfY, pdfW, pdfH),
       format: sf.PdfStringFormat(
         alignment: sf.PdfTextAlignment.left,
         lineAlignment: sf.PdfVerticalAlignment.top,
       ),
     );
-    
-    // Restore graphics state
-    page.graphics.restore();
-    
-    print('  ✓ "$text" @ (${pdfX.toStringAsFixed(1)}, ${pdfY.toStringAsFixed(1)}) '
-          'scale=(${scaleTextX.toStringAsFixed(2)}x, ${scaleTextY.toStringAsFixed(2)}x)');
+
+    print(
+      '✓ "$text" @ (${pdfX.toStringAsFixed(1)}, ${pdfY.toStringAsFixed(1)}) '
+      'matrix≈(${scaleTextX.toStringAsFixed(2)}x, '
+      '${scaleTextY.toStringAsFixed(2)}y)',
+    );
   }
 }
+
 }

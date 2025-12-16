@@ -219,16 +219,46 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
     }
   }
 
+  
+
   Future<void> _addImages() async {
-    final picked = await DocumentScannerService.pickFromFiles();
-    if (picked.isNotEmpty) {
-      setState(() {
-        _inputs.addAll(picked);
-        // Images are always scanned
-        for (final img in picked) {
-          _pageTypeCache[img] = PageType.scanned;
-        }
-      });
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Image'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take Picture'),
+              onTap: () => Navigator.pop(context, 'camera'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Pick from Gallery'),
+              onTap: () => Navigator.pop(context, 'gallery'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == null) return;
+
+    if (choice == 'camera') {
+      await _takePicture();
+    } else {
+      final picked = await DocumentScannerService.pickFromFiles();
+      if (picked.isNotEmpty) {
+        setState(() {
+          _inputs.addAll(picked);
+          // Images are always scanned
+          for (final img in picked) {
+            _pageTypeCache[img] = PageType.scanned;
+          }
+        });
+      }
     }
   }
 
@@ -239,8 +269,8 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
     }
 
     // First, show OCR preview
-    final shouldContinue = await _showOcrPreview();
-    if (!shouldContinue) return;
+    // final shouldContinue = await _showOcrPreview();
+    // if (!shouldContinue) return;
 
     setState(() {
       _loading = true;
@@ -281,11 +311,11 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
       await showModalBottomSheet(
         context: context,
         builder: (ctx) => ExportDialog(
-          onPreviewPdf: () async {
-            Navigator.pop(ctx);
-            // Open PDF for preview
-            // await (file);
-          },
+          // onPreviewPdf: () async {
+          //   Navigator.pop(ctx);
+          //   // Open PDF for preview
+          //   // await (file);
+          // },
           onSharePdf: () async {
             Navigator.pop(ctx);
             await FileService.shareFile(file, 'pdf');
@@ -374,7 +404,7 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Make PDF Searchable (OCR)'),
+        title: const Text('OCR'),
         actions: [
           if (_tabController.index == 0)
             IconButton(
@@ -383,19 +413,19 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
               tooltip: 'View mode',
             ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(
-              icon: const Icon(Icons.photo_library, color: Colors.white),
-              child: Text("Pages", style: Tools.h3(context).copyWith(fontSize: 15)),
-            ),
-            Tab(
-              icon: const Icon(Icons.settings, color: Colors.white),
-              child: Text("How To", style: Tools.h3(context).copyWith(fontSize: 15)),
-            ),
-          ],
-        ),
+        // bottom: TabBar(
+        //   controller: _tabController,
+        //   tabs: [
+        //     Tab(
+        //       icon: const Icon(Icons.photo_library, color: Colors.white),
+        //       child: Text("Pages", style: Tools.h3(context).copyWith(fontSize: 15)),
+        //     ),
+        //     Tab(
+        //       icon: const Icon(Icons.settings, color: Colors.white),
+        //       child: Text("How To", style: Tools.h3(context).copyWith(fontSize: 15)),
+        //     ),
+        //   ],
+        // ),
       ),
       body: _loading
           ? Center(
@@ -413,13 +443,9 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
                 ],
               ),
             )
-          : TabBarView(
-              controller: _tabController,
-              children: [
+          : 
                 _buildPagesTab(),
-                _buildSettingsTab(),
-              ],
-            ),
+                
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : _generate,
         icon: const Icon(Icons.auto_fix_high),
@@ -436,17 +462,25 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
           color: Theme.of(context).colorScheme.surfaceVariant,
           child: Row(
             children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _loading ? null : _takePicture,
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('Take Picture'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
+              //   Expanded(
+              //   child: ElevatedButton.icon(
+              //     onPressed: _loading ? null : () async {
+              //       final picked = await DocumentScannerService.pickPdfFiles();
+              //       if (picked.isNotEmpty) {
+              //         setState(() {
+              //           _inputs.addAll(picked);
+              //           // PDFs need classification
+              //         });
+              //       }
+              //     },
+              //     icon: const Icon(Icons.picture_as_pdf),
+              //     label: const Text('Add PDFs'),
+              //     style: ElevatedButton.styleFrom(
+              //     padding: const EdgeInsets.symmetric(vertical: 12),
+              //     ),
+              //   ),
+              //   ),
+              // const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: _loading ? null : _addImages,
