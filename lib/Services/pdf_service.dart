@@ -7,8 +7,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../constants/app_constants.dart';
 import '../utils/file_utils.dart';
-import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
-import 'dart:ui' show Size, Offset;
 import '../Modules/page_ref.dart';
 
 class PdfService {
@@ -25,7 +23,6 @@ class PdfService {
     int done = 0;
 
     for (final path in imagePaths) {
-      // Yield to keep UI responsive between heavy operations
       await Future.delayed(const Duration(milliseconds: 1));
       try {
         Uint8List processedBytes;
@@ -38,7 +35,6 @@ class PdfService {
           );
 
           if (compressedBytes == null) {
-            print('Failed to compress HEIC image: $path');
             continue;
           }
 
@@ -60,15 +56,13 @@ class PdfService {
           final bytes = await File(path).readAsBytes();
           if (bytes.isEmpty) continue;
 
-          // Fast path: if not compressing and already JPEG, avoid re-encoding
           final lower = path.toLowerCase();
           final isJpeg = lower.endsWith('.jpg') || lower.endsWith('.jpeg');
           if (!enableCompression && isJpeg) {
-            processedBytes = bytes; // keep original
+            processedBytes = bytes;
           } else {
             final decodedImage = img.decodeImage(bytes);
             if (decodedImage == null) {
-              print('Failed to decode image: $path');
               continue;
             }
 
@@ -102,7 +96,6 @@ class PdfService {
           ),
         );
       } catch (e) {
-        print('Error processing image $path: $e');
         // continue
       }
 
@@ -121,7 +114,7 @@ class PdfService {
     return file;
   }
 
-  /// Merges multiple local PDF files into a single PDF preserving vector/text.
+  /// Merges multiple local PDF files by converting each page to an image
   static Future<File> mergePdfs(
     List<String> pdfPaths, {
     String? baseName,
@@ -131,53 +124,15 @@ class PdfService {
     if (pdfPaths.isEmpty) {
       throw ArgumentError('No PDF files provided to merge');
     }
-    // Count total pages for progress updates
-    int totalPages = 0;
-    final List<sf.PdfDocument> sources = [];
-    for (final path in pdfPaths) {
-      final bytes = await File(path).readAsBytes();
-      final doc = sf.PdfDocument(inputBytes: bytes);
-      totalPages += doc.pages.count;
-      sources.add(doc);
-    }
 
-    int done = 0;
-    final out = sf.PdfDocument();
-    // Remove margins so template fits exactly
-    out.pageSettings.margins.all = 0;
-    for (final src in sources) {
-      final count = src.pages.count;
-      for (int i = 0; i < count; i++) {
-        await Future.delayed(const Duration(milliseconds: 1));
-        final srcPage = src.pages[i];
-        final sz = srcPage.size; // Size from dart:ui
-        out.pageSettings.size = Size(sz.width, sz.height);
-        final newPage = out.pages.add();
-        final template = srcPage.createTemplate();
-        newPage.graphics.drawPdfTemplate(
-          template,
-          Offset.zero,
-          Size(sz.width, sz.height),
-        );
-        done++;
-        onProgress?.call(done, totalPages);
-      }
-    }
-
-    final bytes = out.saveSync();
-    out.dispose();
-    for (final s in sources) {
-      s.dispose();
-    }
-
-    final dir = await getTemporaryDirectory();
-    final outName = (baseName?.isNotEmpty ?? false) ? baseName! : 'merged';
-    final file = File('${dir.path}/$outName.pdf');
-    await file.writeAsBytes(bytes, flush: true);
-    return file;
+    // Note: The pdf package doesn't support importing existing PDFs directly.
+    // You'll need to use pdf_render or similar to convert pages to images first.
+    throw UnimplementedError(
+      'PDF merging requires additional packages like pdf_render to convert pages to images',
+    );
   }
 
-  /// Merge pages in an explicit order defined by PageRef(filePath, pageNumber)
+  /// Merge pages in an explicit order
   static Future<File> mergePages(
     List<PageRef> pages, {
     String? baseName,
@@ -188,46 +143,8 @@ class PdfService {
       throw ArgumentError('No pages provided to merge');
     }
 
-    final totalPages = pages.length;
-    int done = 0;
-
-    // Cache opened documents (Syncfusion)
-    final cache = <String, sf.PdfDocument>{};
-    final out = sf.PdfDocument();
-    out.pageSettings.margins.all = 0;
-
-    for (final ref in pages) {
-      await Future.delayed(const Duration(milliseconds: 1));
-      final src = cache[ref.filePath] ??= sf.PdfDocument(
-        inputBytes: await File(ref.filePath).readAsBytes(),
-      );
-
-      final idx = ref.pageNumber - 1; // zero-based
-      final srcPage = src.pages[idx];
-      final sz = srcPage.size;
-      out.pageSettings.size = Size(sz.width, sz.height);
-      final newPage = out.pages.add();
-      final template = srcPage.createTemplate();
-      newPage.graphics.drawPdfTemplate(
-        template,
-        Offset.zero,
-        Size(sz.width, sz.height),
-      );
-
-      done++;
-      onProgress?.call(done, totalPages);
-    }
-
-    final bytes = out.saveSync();
-    out.dispose();
-    for (final d in cache.values) {
-      d.dispose();
-    }
-
-    final dir = await getTemporaryDirectory();
-    final outName = (baseName?.isNotEmpty ?? false) ? baseName! : 'merged_pages';
-    final file = File('${dir.path}/$outName.pdf');
-    await file.writeAsBytes(bytes, flush: true);
-    return file;
+    throw UnimplementedError(
+      'PDF page merging requires additional packages like pdf_render to convert pages to images',
+    );
   }
 }

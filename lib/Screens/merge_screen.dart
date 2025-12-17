@@ -217,20 +217,19 @@ class _MergeScreenState extends State<MergeScreen> {
           await showModalBottomSheet(
             context: context,
             builder: (ctx) => ExportDialog(
-              onPreviewPdf: () async {
-                Navigator.pop(ctx);
-                // await FileService.openFile(file);
-              },
-              onSharePdf: () async {
-                Navigator.pop(ctx);
-                await FileService.shareFile(file, 'pdf');
-              },
-              onSavePdf: () async {
-                Navigator.pop(ctx);
-                final saved = await FileService.saveToDownloads(file);
-                if (!mounted) return;
-                CustomSnackbar.showSuccess(context, 'Saved to: ${saved.path}');
-              },
+                    
+                    onSharePdf: () async {
+                    Navigator.pop(ctx);
+                    await FileService.shareFile(file, 'pdf');
+                    },
+                    onSavePdf: () async {
+                    Navigator.pop(ctx);
+                    final saved = await FileService.saveToDownloads(file);
+                    if (!mounted) return;
+                    CustomSnackbar.showSuccess(context, 'Saved to: ${saved.path}');
+                    // Open the folder and highlight the saved file
+                    // await FileService.openFileLocation(saved.path);
+                    },
             ),
           );
         } catch (e) {

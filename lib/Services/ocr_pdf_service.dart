@@ -5,12 +5,10 @@ import 'dart:ui' as ui;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart' as pdfx;
-import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:image/image.dart' as img;
 import 'ocr_engine.dart';
-
-// Standard DPI for PDF rendering (72 points = 1 inch)
-const double _dpi = 300.0;
 
 /// Page classification result
 enum PageType {
@@ -45,29 +43,41 @@ class OcrPdfService {
       final lower = path.toLowerCase();
 
       if (lower.endsWith('.pdf')) {
-        // Classify each PDF page
-        final bytes = await File(path).readAsBytes();
-        final sf.PdfDocument doc = sf.PdfDocument(inputBytes: bytes);
+        // Classify each PDF page using pdfx for text extraction
+        try {
+          final bytes = await File(path).readAsBytes();
+          final document = await pdfx.PdfDocument.openData(bytes);
 
-        for (int i = 0; i < doc.pages.count; i++) {
-          final text = sf.PdfTextExtractor(doc)
-              .extractText(startPageIndex: i, endPageIndex: i);
+          for (int i = 1; i <= document.pagesCount; i++) {
+            final page = await document.getPage(i);
+            
+            // pdfx doesn't provide text extraction, so we'll assume scanned
+            // You may need to render and OCR to determine if text exists
+            // For now, classify as scanned to trigger OCR
+            await page.close();
 
-          final type =
-              (text.trim().length) > 10 ? PageType.textBased : PageType.scanned;
+            final type = PageType.scanned;
 
-          print('📄 Page ${i + 1} classification:');
-          print('  Extracted text length: ${text.trim().length}');
-          print('  Type: $type');
+            print('📄 Page $i classification:');
+            print('  Type: $type (pdfx cannot extract text)');
 
+            pages.add(PageInfo(
+              filePath: path,
+              pageNumber: i,
+              type: type,
+              extractedText: null,
+            ));
+          }
+          await document.close();
+        } catch (e) {
+          print('Error classifying PDF: $e');
+          // If error, treat as scanned
           pages.add(PageInfo(
             filePath: path,
-            pageNumber: i + 1,
-            type: type,
-            extractedText: text,
+            pageNumber: 1,
+            type: PageType.scanned,
           ));
         }
-        doc.dispose();
       } else if (lower.endsWith('.png') ||
           lower.endsWith('.jpg') ||
           lower.endsWith('.jpeg') ||
@@ -93,7 +103,7 @@ class OcrPdfService {
     required bool forceOcrAll,
     Function(double progress, String message)? onProgress,
   }) async {
-    final sf.PdfDocument result = sf.PdfDocument();
+    final pdf = pw.Document();
 
     onProgress?.call(0.0, 'Classifying pages...');
     final pages = await classifyPages(inputs);
@@ -110,7 +120,7 @@ class OcrPdfService {
 
       if (lower.endsWith('.pdf')) {
         await _processPdfPage(
-          result: result,
+          pdf: pdf,
           pageInfo: pageInfo,
           ocrEngine: ocrEngine,
           language: language,
@@ -118,7 +128,7 @@ class OcrPdfService {
         );
       } else {
         await _processImagePage(
-          result: result,
+          pdf: pdf,
           pageInfo: pageInfo,
           ocrEngine: ocrEngine,
           language: language,
@@ -130,8 +140,7 @@ class OcrPdfService {
 
     onProgress?.call(1.0, 'Saving PDF...');
 
-    final bytes = Uint8List.fromList(await result.save());
-    result.dispose();
+    final bytes = await pdf.save();
 
     final dir = await getTemporaryDirectory();
     final outPath =
@@ -144,7 +153,7 @@ class OcrPdfService {
 
   /// Process a single PDF page
   static Future<void> _processPdfPage({
-    required sf.PdfDocument result,
+    required pw.Document pdf,
     required PageInfo pageInfo,
     required OcrEngine ocrEngine,
     required String language,
@@ -165,34 +174,24 @@ class OcrPdfService {
     await pdfxDoc.close();
 
     if (rendered == null) {
-      result.pages.add();
+      pdf.addPage(pw.Page(build: (context) => pw.Container()));
       return;
     }
 
     final imageWidthPx = (rendered.width ?? pdfxPage.width * 2).toDouble();
     final imageHeightPx = (rendered.height ?? pdfxPage.height * 2).toDouble();
 
-    // Use image dimensions directly for PDF page size (1:1 mapping)
-    final pdfWidth = imageWidthPx;
-    final pdfHeight = imageHeightPx;
+    // Decode image for embedding
+    final decodedImage = img.decodeImage(rendered.bytes);
+    if (decodedImage == null) {
+      pdf.addPage(pw.Page(build: (context) => pw.Container()));
+      return;
+    }
 
-    // Configure page settings
-    result.pageSettings.margins.all = 0;
-    result.pageSettings.size = ui.Size(pdfWidth, pdfHeight);
-    result.pageSettings.orientation = pdfWidth > pdfHeight
-        ? sf.PdfPageOrientation.landscape
-        : sf.PdfPageOrientation.portrait;
-
-    final newPage = result.pages.add();
-
-    // Draw image
-    final pageBitmap = sf.PdfBitmap(rendered.bytes);
-    newPage.graphics.drawImage(
-      pageBitmap,
-      ui.Rect.fromLTWH(0, 0, pdfWidth, pdfHeight),
-    );
+    final pdfImage = pw.MemoryImage(rendered.bytes);
 
     // Add OCR text layer if needed
+    List<OcrTextBlock>? ocrBlocks;
     if (pageInfo.needsOcr || forceOcrAll) {
       final processedBytes = await _preprocessImage(rendered.bytes);
       final ocr = await ocrEngine.recognizeText(
@@ -203,21 +202,40 @@ class OcrPdfService {
 
       if (ocr.hasText) {
         print('📝 OCR found ${ocr.blocks.length} text blocks');
-        await _addInvisibleTextLayer(
-          page: newPage,
-          blocks: ocr.blocks,
-          imageWidth: imageWidthPx,
-          imageHeight: imageHeightPx,
-          pdfWidth: pdfWidth,
-          pdfHeight: pdfHeight,
-        );
+        ocrBlocks = ocr.blocks;
       }
     }
+
+    // Create PDF page with image and invisible text layer
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat(
+          imageWidthPx,
+          imageHeightPx,
+          marginAll: 0,
+        ),
+        build: (context) {
+          return pw.Stack(
+            children: [
+              // Background image
+              pw.Image(pdfImage, fit: pw.BoxFit.fill),
+              // Invisible text layer
+              if (ocrBlocks != null)
+                ..._buildInvisibleTextWidgets(
+                  ocrBlocks,
+                  imageWidthPx,
+                  imageHeightPx,
+                ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   /// Process a single image page
   static Future<void> _processImagePage({
-    required sf.PdfDocument result,
+    required pw.Document pdf,
     required PageInfo pageInfo,
     required OcrEngine ocrEngine,
     required String language,
@@ -227,32 +245,14 @@ class OcrPdfService {
     // Decode image to get dimensions
     final decodedImg = img.decodeImage(bytes);
     if (decodedImg == null) {
-      result.pages.add();
+      pdf.addPage(pw.Page(build: (context) => pw.Container()));
       return;
     }
 
     final imageWidthPx = decodedImg.width.toDouble();
     final imageHeightPx = decodedImg.height.toDouble();
 
-    // Use image dimensions directly for PDF page size (1:1 mapping)
-    final pdfWidth = imageWidthPx;
-    final pdfHeight = imageHeightPx;
-
-    // Configure page settings
-    result.pageSettings.margins.all = 0;
-    result.pageSettings.size = ui.Size(pdfWidth, pdfHeight);
-    result.pageSettings.orientation = pdfWidth > pdfHeight
-        ? sf.PdfPageOrientation.landscape
-        : sf.PdfPageOrientation.portrait;
-
-    final newPage = result.pages.add();
-
-    // Draw image
-    final pdfImg = sf.PdfBitmap(bytes);
-    newPage.graphics.drawImage(
-      pdfImg,
-      ui.Rect.fromLTWH(0, 0, pdfWidth, pdfHeight),
-    );
+    final pdfImage = pw.MemoryImage(bytes);
 
     // Add OCR text layer
     final processedBytes = await _preprocessImage(bytes);
@@ -262,85 +262,40 @@ class OcrPdfService {
       imageSize: ui.Size(imageWidthPx, imageHeightPx),
     );
 
+    List<OcrTextBlock>? ocrBlocks;
     if (ocrResult.hasText) {
       print('📝 OCR found ${ocrResult.blocks.length} text blocks');
-      await _addInvisibleTextLayerPerChar(
-        page: newPage,
-        blocks: ocrResult.blocks,
-        imageWidth: imageWidthPx,
-        imageHeight: imageHeightPx,
-        pdfWidth: pdfWidth,
-        pdfHeight: pdfHeight,
-      );
-    }
-  }
-
-  static Future<void> _addInvisibleTextLayerWithSpacing({
-  required sf.PdfPage page,
-  required List<OcrTextBlock> blocks,
-  required double imageWidth,
-  required double imageHeight,
-  required double pdfWidth,
-  required double pdfHeight,
-}) async {
-  final scaleX = pdfWidth / imageWidth;
-  final scaleY = pdfHeight / imageHeight;
-
-  for (final block in blocks) {
-    final text = block.text?.trim() ?? '';
-    if (text.isEmpty) continue;
-
-    final box = block.boundingBox;
-    final boxWidth = box.width * scaleX;
-    final boxHeight = box.height * scaleY;
-
-    final pdfX = box.left * scaleX;
-    final pdfY = box.top * scaleY;
-
-    // Calculate font size
-    final fontSize = (boxHeight * 0.75).clamp(6.0, 500.0);
-    final font = sf.PdfStandardFont(sf.PdfFontFamily.helvetica, fontSize);
-
-    // Measure text
-    final textSize = font.measureString(text);
-    
-    // Calculate character spacing to make text fit width
-    // This spreads characters naturally, not per-character positioning
-    var charSpacing = 0.0;
-    if (textSize.width > 0 && text.length > 1) {
-      final widthDiff = boxWidth - textSize.width;
-      charSpacing = widthDiff / (text.length - 1);
-      // Limit spacing to reasonable values to avoid extreme gaps
-      charSpacing = charSpacing.clamp(-2.0, 3.0);
+      ocrBlocks = ocrResult.blocks;
     }
 
-    // Make text invisible
-    page.graphics.save();
-    page.graphics.setTransparency(0);
-
-    final brush = sf.PdfSolidBrush(sf.PdfColor(0, 0, 0));
-    final bounds = ui.Rect.fromLTWH(pdfX, pdfY, boxWidth, boxHeight);
-
-    // Draw text as single unit with character spacing
-    page.graphics.drawString(
-      text,
-      font,
-      brush: brush,
-      bounds: bounds,
-      format: sf.PdfStringFormat(
-        alignment: sf.PdfTextAlignment.left,
-        lineAlignment: sf.PdfVerticalAlignment.top,
-        characterSpacing: charSpacing,
+    // Create PDF page with image and invisible text layer
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat(
+          imageWidthPx,
+          imageHeightPx,
+          marginAll: 0,
+        ),
+        build: (context) {
+          return pw.Stack(
+            children: [
+              // Background image
+              pw.Image(pdfImage, fit: pw.BoxFit.fill),
+              // Invisible text layer
+              if (ocrBlocks != null)
+                ..._buildInvisibleTextWidgets(
+                  ocrBlocks,
+                  imageWidthPx,
+                  imageHeightPx,
+                ),
+            ],
+          );
+        },
       ),
     );
-
-    page.graphics.restore();
-    
-    print('  ✓ "$text" spacing=${charSpacing.toStringAsFixed(2)}');
   }
-}
 
-  /// Preprocess image for better OCR
+    /// Preprocess image for better OCR
   static Future<Uint8List> _preprocessImage(Uint8List imageBytes) async {
     try {
       final image = img.decodeImage(imageBytes);
@@ -360,216 +315,60 @@ class OcrPdfService {
     }
   }
 
-  /// Add invisible text layer to page using render mode 3 (invisible)
-  static Future<void> _addInvisibleTextLayer({
-  required sf.PdfPage page,
-  required List<OcrTextBlock> blocks,
-  required double imageWidth,
-  required double imageHeight,
-  required double pdfWidth,
-  required double pdfHeight,
-}) async {
-  // Calculate scale factors: points per pixel
-  final scaleX = pdfWidth / imageWidth;
-  final scaleY = pdfHeight / imageHeight;
+  /// Build invisible text widgets for PDF overlay
+  /// Uses text rendering with character spacing to match OCR bounding boxes
+  static List<pw.Widget> _buildInvisibleTextWidgets(
+    List<OcrTextBlock> blocks,
+    double pageWidth,
+    double pageHeight,
+  ) {
+    final widgets = <pw.Widget>[];
 
-  print('📐 Transform: ImageSize=${imageWidth}x$imageHeight, PDFSize=${pdfWidth}x$pdfHeight');
-  print('   ScaleX=$scaleX, ScaleY=$scaleY');
+    for (final block in blocks) {
+      final text = block.text?.trim() ?? '';
+      if (text.isEmpty) continue;
 
-  for (final block in blocks) {
-    final text = block.text?.trim() ?? '';
-    if (text.isEmpty) continue;
+      final box = block.boundingBox;
 
-    // Split into words and position each one individually
-    final words = text.split(RegExp(r'\s+'));
-    final box = block.boundingBox;
-    
-    // Calculate approximate word width in the original box
-    final totalChars = words.fold<int>(0, (sum, word) => sum + word.length);
-    if (totalChars == 0) continue;
-    
-    final boxWidth = box.width * scaleX;
-    final boxHeight = box.height * scaleY;
-    
-    // Estimate space taken by each character
-    final charWidth = boxWidth / totalChars;
-    
-    // Start position
-    double currentX = box.left * scaleX;
-    final pdfY = box.top * scaleY;
-    
-    for (final word in words) {
-      if (word.isEmpty) continue;
-      
-      // Calculate this word's width based on character count
-      final wordWidth = charWidth * word.length;
-      
-      // Calculate font size to match box height
-      // Use a more conservative factor for better compatibility
-      final fontSize = (boxHeight * 0.75).clamp(6.0, 500.0);
-      
-      final font = sf.PdfStandardFont(sf.PdfFontFamily.helvetica, fontSize);
-      
-      // Create bounds for this specific word
-      final wordBounds = ui.Rect.fromLTWH(currentX, pdfY, wordWidth, boxHeight);
-      
-      // Use transparent brush for invisible text
-      final brush = sf.PdfSolidBrush(sf.PdfColor(0, 0, 0, 0));
-      
-      // Draw the word - let it naturally fit in its bounds
-      page.graphics.drawString(
-        word,
-        font,
-        brush: brush,
-        bounds: wordBounds,
-        format: sf.PdfStringFormat(
-          alignment: sf.PdfTextAlignment.left,
-          lineAlignment: sf.PdfVerticalAlignment.top,
+      // PDF package uses bottom-left origin, OCR uses top-left
+      // Convert coordinates: pdfY = pageHeight - (ocrY + ocrHeight)
+      final left = box.left;
+      final bottom = pageHeight - (box.top + box.height);
+      final width = box.width;
+      final height = box.height;
+
+      // Calculate font size based on box height
+      final fontSize = (height * 0.75).clamp(6.0, 100.0);
+
+      // Calculate character spacing to stretch text across the box width
+      // Estimate natural text width (Helvetica: ~0.5 * fontSize per char)
+      final avgCharWidth = fontSize * 0.5;
+      final estimatedWidth = text.length * avgCharWidth;
+      final charSpacing = estimatedWidth > 0 && text.length > 1
+          ? (width - estimatedWidth) / (text.length - 1)
+          : 0.0;
+
+      widgets.add(
+        pw.Positioned(
+          left: left,
+          bottom: bottom,
+          // width: width,
+          // height: height,
+          child: pw.Opacity(
+            opacity: 0.0, // Completely invisible
+            child: pw.Text(
+              text,
+              style: pw.TextStyle(
+                font: pw.Font.helvetica(),
+                fontSize: fontSize,
+                letterSpacing: charSpacing.clamp(-2.0, 5.0),
+              ),
+            ),
+          ),
         ),
       );
-      
-      print('  ✓ "$word" @ (${currentX.toStringAsFixed(1)}, ${pdfY.toStringAsFixed(1)}) '
-            'w=${wordWidth.toStringAsFixed(1)} font=${fontSize.toStringAsFixed(1)}');
-      
-      // Move to next word position (add word width + space)
-      currentX += wordWidth + (charWidth * 0.5); // 0.5 char width for space
-    }
-  }
-}
-
-/// Alternative: Draw each character individually for PERFECT positioning
-/// This is what professional OCR systems do when they have per-character coordinates
-static Future<void> _addInvisibleTextLayerPerChar({
-  required sf.PdfPage page,
-  required List<OcrTextBlock> blocks,
-  required double imageWidth,
-  required double imageHeight,
-  required double pdfWidth,
-  required double pdfHeight,
-}) async {
-  final scaleX = pdfWidth / imageWidth;
-  final scaleY = pdfHeight / imageHeight;
-
-  for (final block in blocks) {
-    final text = block.text?.trim() ?? '';
-    if (text.isEmpty) continue;
-
-    final box = block.boundingBox;
-    final boxWidth = box.width * scaleX;
-    final boxHeight = box.height * scaleY;
-
-    final charWidth = boxWidth / text.length;
-
-    double currentX = box.left * scaleX;
-    final pdfY = box.top * scaleY;
-
-    final fontSize = (boxHeight * 0.75).clamp(6.0, 500.0);
-    final font =
-        sf.PdfStandardFont(sf.PdfFontFamily.helvetica, fontSize);
-
-    final format = sf.PdfStringFormat(
-      alignment: sf.PdfTextAlignment.center,
-      lineAlignment: sf.PdfVerticalAlignment.top,
-    );
-
-    // 🔑 Make text invisible
-    page.graphics.save();
-    page.graphics.setTransparency(0);
-
-    final brush = sf.PdfSolidBrush(sf.PdfColor(0, 0, 0));
-
-    for (int i = 0; i < text.length; i++) {
-      final char = text[i];
-
-      if (char.trim().isEmpty) {
-        currentX += charWidth;
-        continue;
-      }
-
-      final charBounds =
-          ui.Rect.fromLTWH(currentX, pdfY, charWidth, boxHeight);
-
-      page.graphics.drawString(
-        char,
-        font,
-        brush: brush,
-        bounds: charBounds,
-        format: format,
-      );
-
-      currentX += charWidth;
     }
 
-    page.graphics.restore();
+    return widgets;
   }
-}
-
-
-/// BEST APPROACH: Use text matrix transformation for perfect scaling
-/// This is the PDF specification's intended method for fitting text
-static Future<void> _addInvisibleTextLayerWithMatrix({
-  required sf.PdfPage page,
-  required List<OcrTextBlock> blocks,
-  required double imageWidth,
-  required double imageHeight,
-  required double pdfWidth,
-  required double pdfHeight,
-}) async {
-  final scaleX = pdfWidth / imageWidth;
-  final scaleY = pdfHeight / imageHeight;
-
-  for (final block in blocks) {
-    final text = block.text?.trim() ?? '';
-    if (text.isEmpty) continue;
-
-    final box = block.boundingBox;
-
-    // Transform image coords → PDF coords
-    final pdfX = box.left * scaleX;
-    final pdfY = box.top * scaleY;
-    final pdfW = box.width * scaleX;
-    final pdfH = box.height * scaleY;
-
-    if (pdfW <= 1 || pdfH <= 1) continue;
-
-    // Base font size (matrix "unit size")
-    const baseFontSize = 12.0;
-    final baseFont =
-        sf.PdfStandardFont(sf.PdfFontFamily.helvetica, baseFontSize);
-
-    final baseSize = baseFont.measureString(text);
-    if (baseSize.width <= 0 || baseSize.height <= 0) continue;
-
-    // Matrix-equivalent scaling
-    final scaleTextX = pdfW / baseSize.width;
-    final scaleTextY = pdfH / baseSize.height;
-
-    // Convert vertical scale → font size
-    final finalFontSize =
-        (baseFontSize * scaleTextY).clamp(6.0, 400.0);
-
-    final font =
-        sf.PdfStandardFont(sf.PdfFontFamily.helvetica, finalFontSize);
-
-    final brush = sf.PdfSolidBrush(sf.PdfColor(0, 0, 0, 0));
-
-    page.graphics.drawString(
-      text,
-      font,
-      brush: brush,
-      bounds: ui.Rect.fromLTWH(pdfX, pdfY, pdfW, pdfH),
-      format: sf.PdfStringFormat(
-        alignment: sf.PdfTextAlignment.left,
-        lineAlignment: sf.PdfVerticalAlignment.top,
-      ),
-    );
-
-    print(
-      '✓ "$text" @ (${pdfX.toStringAsFixed(1)}, ${pdfY.toStringAsFixed(1)}) '
-      'matrix≈(${scaleTextX.toStringAsFixed(2)}x, '
-      '${scaleTextY.toStringAsFixed(2)}y)',
-    );
-  }
-}
-
 }

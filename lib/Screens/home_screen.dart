@@ -195,6 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onSavePdf: () {
           Navigator.pop(context);
           _exportPdfWithAd(saveOnly: true);
+          
         },
       ),
     );
@@ -479,118 +480,120 @@ Widget build(BuildContext context) {
                 },
                 onReorder: _reorderImages,
               )
-            : Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Choose an option below",
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
-                          fontWeight: FontWeight.w600,
+            : SingleChildScrollView(
+              child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Choose an option below",
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 28),
-
-                      // Scan Document Card
-                      _ModernCard(
-                        icon: Icons.document_scanner_rounded,
-                        title: 'Scan Document',
-                        subtitle: 'Scan using camera',
-                        gradientIndex: 0,
-                        rating: 4.5,
-                        onPressed: _isLoading ? null : _chooseInputMethod,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Open PDFs Card
-                      _ModernCard(
-                        icon: Icons.picture_as_pdf_rounded,
-                        title: 'Open PDFs',
-                        subtitle: 'View & manage',
-                        gradientIndex: 0,
-                        rating: 4.8,
-                        onPressed: _isLoading ? null : _pickAndViewPdf,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Merge PDFs Card
-                      _ModernCard(
-                        icon: Icons.merge_type_rounded,
-                        title: 'Merge PDFs',
-                        subtitle: 'Combine files',
-                        gradientIndex: 0,
-                        rating: 4.6,
-                        onPressed: _isLoading
-                            ? null
-                            : () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const MergeScreen(),
+                        const SizedBox(height: 28),
+              
+                        // Scan Document Card
+                        _ModernCard(
+                          icon: Icons.document_scanner_rounded,
+                          title: 'Scan Document',
+                          subtitle: 'Scan using camera',
+                          gradientIndex: 0,
+                          rating: 4.5,
+                          onPressed: _isLoading ? null : _chooseInputMethod,
+                        ),
+                        const SizedBox(height: 16),
+              
+                        // Open PDFs Card
+                        _ModernCard(
+                          icon: Icons.picture_as_pdf_rounded,
+                          title: 'Open PDFs',
+                          subtitle: 'View & manage',
+                          gradientIndex: 0,
+                          rating: 4.8,
+                          onPressed: _isLoading ? null : _pickAndViewPdf,
+                        ),
+                        const SizedBox(height: 16),
+              
+                        // Merge PDFs Card
+                        _ModernCard(
+                          icon: Icons.merge_type_rounded,
+                          title: 'Merge PDFs',
+                          subtitle: 'Combine files',
+                          gradientIndex: 0,
+                          rating: 4.6,
+                          onPressed: _isLoading
+                              ? null
+                              : () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const MergeScreen(),
+                                    ),
                                   ),
-                                ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Numbered PDF Card
-                      // _ModernCard(
-                      //   icon: Icons.format_list_numbered_rounded,
-                      //   title: 'Numbered PDF',
-                      //   subtitle: 'Add page numbers',
-                      //   gradientIndex: 0,
-                      //   rating: 4.6,
-                      //   onPressed: _isLoading
-                      //       ? null
-                      //       : () => Navigator.push(
-                      //             context,
-                      //             MaterialPageRoute(
-                      //               builder: (_) => const NumberedPdfScreen(),
-                      //             ),
-                      //           ),
-                      // ),
-                      // const SizedBox(height: 16),
-
-                      // Compress PDFs Card
-                      _ModernCard(
-                        icon: Icons.compress_rounded,
-                        title: 'Compress PDFs',
-                        subtitle: 'Reduce file size',
-                        gradientIndex: 0,
-                        rating: 4.7,
-                        onPressed: _isLoading
-                            ? null
-                            : () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const CompressScreen(),
+                        ),
+                        const SizedBox(height: 16),
+              
+                        // Numbered PDF Card
+                        // _ModernCard(
+                        //   icon: Icons.format_list_numbered_rounded,
+                        //   title: 'Numbered PDF',
+                        //   subtitle: 'Add page numbers',
+                        //   gradientIndex: 0,
+                        //   rating: 4.6,
+                        //   onPressed: _isLoading
+                        //       ? null
+                        //       : () => Navigator.push(
+                        //             context,
+                        //             MaterialPageRoute(
+                        //               builder: (_) => const NumberedPdfScreen(),
+                        //             ),
+                        //           ),
+                        // ),
+                        // const SizedBox(height: 16),
+              
+                        // Compress PDFs Card
+                        _ModernCard(
+                          icon: Icons.compress_rounded,
+                          title: 'Compress PDFs',
+                          subtitle: 'Reduce file size',
+                          gradientIndex: 0,
+                          rating: 4.7,
+                          onPressed: _isLoading
+                              ? null
+                              : () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const CompressScreen(),
+                                    ),
                                   ),
-                                ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // OCR Card (Make PDF Searchable)
-                      _ModernCard(
-                        icon: Icons.auto_fix_high_rounded,
-                        title: 'OCR',
-                        subtitle: 'Extract text from images',
-                        gradientIndex: 0,
-                        rating: 4.8,
-                        onPressed: _isLoading
-                            ? null
-                            : () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const OcrPdfScreen(),
+                        ),
+                        const SizedBox(height: 16),
+              
+                        // OCR Card (Make PDF Searchable)
+                        _ModernCard(
+                          icon: Icons.auto_fix_high_rounded,
+                          title: 'OCR',
+                          subtitle: 'Extract text from images',
+                          gradientIndex: 0,
+                          rating: 4.8,
+                          onPressed: _isLoading
+                              ? null
+                              : () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const OcrPdfScreen(),
+                                    ),
                                   ),
-                                ),
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+            ),
       ),
       floatingActionButton: hasScans
           ? FloatingActionButton.extended(
@@ -869,13 +872,17 @@ class _ModernActionButton extends StatelessWidget {
                   color: theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.primary,
-                    fontFamily: 'Poppins',
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.primary,
+                      fontFamily: 'Poppins',
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ],

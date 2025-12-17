@@ -325,6 +325,7 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
             final saved = await FileService.saveToDownloads(file);
             if (!mounted) return;
             CustomSnackbar.showSuccess(context, 'Saved to: ${saved.path}');
+            // await FileService.openFileLocation(saved.path);
           },
         ),
       );
@@ -377,8 +378,8 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
                 const Text('Grid Columns', style: TextStyle(fontWeight: FontWeight.bold)),
                 Slider(
                   min: 2,
-                  max: 5,
-                  divisions: 3,
+                  max: 4,
+                  divisions: 2,
                   label: '$_gridCount',
                   value: _gridCount.toDouble(),
                   onChanged: (v) {
