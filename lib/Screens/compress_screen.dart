@@ -8,6 +8,7 @@ import 'package:docu_scan/Widgets/common/loading_overlay.dart';
 import 'package:docu_scan/services/ad_service.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'output_screen.dart';
 
 class CompressScreen extends StatefulWidget {
   const CompressScreen({super.key});
@@ -51,7 +52,7 @@ class _CompressScreenState extends State<CompressScreen> {
     }
   }
 
-  Future<void> _compressAndExport({required bool saveOnly}) async {
+  Future<void> _compressAndNavigate() async {
     if (_selectedPdfPaths.isEmpty) return;
     setState(() {
       _isLoading = true;
@@ -83,34 +84,42 @@ class _CompressScreenState extends State<CompressScreen> {
       // Show ad while compression runs in background
       final outputs = await _adService.showAdWhileFuture(compressionFuture);
 
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadingText = null;
+      });
+
+      File outputFile;
+      String title;
+
       if (outputs.length == 1) {
-        final out = outputs.first;
-        if (saveOnly) {
-          final saved = await FileService.saveToDownloads(out);
-          CustomSnackbar.showSuccess(context, 'Saved to: ${saved.path}');
-        } else {
-          await FileService.shareFile(out, 'pdf');
-          CustomSnackbar.showSuccess(context, 'Compressed PDF shared.');
-        }
+        outputFile = outputs.first;
+        title = 'Compressed PDF';
       } else {
         final zipName = _zipNameForBatch(outputs);
-        final zip = await FileService.zipFiles(outputs, zipName);
-        if (saveOnly) {
-          final saved = await FileService.saveToDownloads(zip);
-          CustomSnackbar.showSuccess(context, 'Saved ZIP to: ${saved.path}');
-        } else {
-          await FileService.shareFile(zip, 'zip');
-          CustomSnackbar.showSuccess(context, 'Compressed PDFs (ZIP) shared.');
-        }
+        outputFile = await FileService.zipFiles(outputs, zipName);
+        title = 'Compressed PDFs (ZIP)';
       }
+
+      // Navigate to output screen
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OutputScreen(
+            pdfFile: outputFile,
+            customTitle: _zipNameForBatch(outputs),
+          ),
+        ),
+      );
     } catch (e) {
-      CustomSnackbar.showError(context, 'Compression failed: $e');
-    } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
           _loadingText = null;
         });
+        CustomSnackbar.showError(context, 'Compression failed: $e');
       }
     }
   }
@@ -295,28 +304,12 @@ class _CompressScreenState extends State<CompressScreen> {
                         ),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _isLoading || _selectedPdfPaths.isEmpty
-                            ? null
-                            : () => _compressAndExport(saveOnly: true),
-                        icon: const Icon(Icons.download_outlined),
-                        label: const Text('Save'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _isLoading || _selectedPdfPaths.isEmpty
-                            ? null
-                            : () => _compressAndExport(saveOnly: false),
-                        icon: const Icon(Icons.share_outlined),
-                        label: const Text('Share'),
-                      ),
-                    ),
-                  ],
+                FilledButton.icon(
+                  onPressed: _isLoading || _selectedPdfPaths.isEmpty
+                      ? null
+                      : _compressAndNavigate,
+                  icon: const Icon(Icons.compress),
+                  label: const Text('Compress PDF'),
                 ),
               ],
             ),

@@ -14,7 +14,7 @@ import '../Services/mlkit_ocr_engine.dart';
 import '../Services/ad_service.dart';
 import '../Utils/tools.dart';
 import '../Widgets/common/custom_snackbar.dart';
-import '../Widgets/dialogs/export_dialog.dart';
+import 'output_screen.dart';
 
 class OcrPdfScreen extends StatefulWidget {
   const OcrPdfScreen({super.key});
@@ -23,7 +23,8 @@ class OcrPdfScreen extends StatefulWidget {
   State<OcrPdfScreen> createState() => _OcrPdfScreenState();
 }
 
-class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderStateMixin {
+class _OcrPdfScreenState extends State<OcrPdfScreen>
+    with SingleTickerProviderStateMixin {
   final AdService _adService = AdService();
   final List<String> _inputs = [];
   bool _loading = false;
@@ -99,21 +100,21 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
 
   Future<bool> _showOcrPreview() async {
     print('🔬 Starting OCR preview...');
-    
+
     try {
       // Run OCR on first file to show preview
       final ocrEngine = MlKitOcrEngine(script: _language);
       final StringBuffer allText = StringBuffer();
-      
+
       print('Processing ${_inputs.length} files for preview...');
-      
+
       for (int i = 0; i < _inputs.length && i < 3; i++) {
         final path = _inputs[i];
         print('Preview: Processing file $i: $path');
-        
+
         final lower = path.toLowerCase();
         Uint8List? imageBytes;
-        
+
         if (lower.endsWith('.pdf')) {
           final doc = await PdfDocument.openFile(path);
           final page = await doc.getPage(1);
@@ -128,24 +129,26 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
         } else {
           imageBytes = await File(path).readAsBytes();
         }
-        
+
         if (imageBytes != null) {
           print('Image bytes: ${imageBytes.length}');
-          final result = await ocrEngine.recognizeText(imageBytes, language: _language);
+          final result =
+              await ocrEngine.recognizeText(imageBytes, language: _language);
           allText.writeln('=== File ${i + 1}: ${p.basename(path)} ===');
           allText.writeln(result.text);
           allText.writeln('');
-          print('Extracted ${result.text.length} characters, ${result.blocks.length} blocks');
+          print(
+              'Extracted ${result.text.length} characters, ${result.blocks.length} blocks');
         }
       }
-      
+
       await ocrEngine.dispose();
-      
+
       if (!mounted) return false;
-      
+
       final extractedText = allText.toString();
       print('Total extracted text length: ${extractedText.length}');
-      
+
       // Show dialog with extracted text
       final result = await showDialog<bool>(
         context: context,
@@ -156,7 +159,7 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
             height: 400,
             child: SingleChildScrollView(
               child: SelectableText(
-                extractedText.isEmpty 
+                extractedText.isEmpty
                     ? 'No text detected. The pages might be blank or the OCR failed.'
                     : extractedText,
                 style: const TextStyle(fontFamily: 'monospace'),
@@ -196,7 +199,7 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
           ],
         ),
       );
-      
+
       return result ?? false;
     } catch (e) {
       print('❌ OCR Preview error: $e');
@@ -218,8 +221,6 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
       });
     }
   }
-
-  
 
   Future<void> _addImages() async {
     final choice = await showDialog<String>(
@@ -308,25 +309,15 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
         _progressValue = null;
       });
 
-      await showModalBottomSheet(
-        context: context,
-        builder: (ctx) => ExportDialog(
-          // onPreviewPdf: () async {
-          //   Navigator.pop(ctx);
-          //   // Open PDF for preview
-          //   // await (file);
-          // },
-          onSharePdf: () async {
-            Navigator.pop(ctx);
-            await FileService.shareFile(file, 'pdf');
-          },
-          onSavePdf: () async {
-            Navigator.pop(ctx);
-            final saved = await FileService.saveToDownloads(file);
-            if (!mounted) return;
-            CustomSnackbar.showSuccess(context, 'Saved to: ${saved.path}');
-            // await FileService.openFileLocation(saved.path);
-          },
+      // Navigate to output screen
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OutputScreen(
+            pdfFile: file,
+            customTitle: 'OCR PDF',
+          ),
         ),
       );
     } catch (e) {
@@ -375,7 +366,8 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
               ),
               if (_isGridView) ...[
                 const Divider(),
-                const Text('Grid Columns', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Grid Columns',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 Slider(
                   min: 2,
                   max: 4,
@@ -410,7 +402,8 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
           if (_tabController.index == 0)
             IconButton(
               onPressed: _showViewModePicker,
-              icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view, color: Colors.white),
+              icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view,
+                  color: Colors.white),
               tooltip: 'View mode',
             ),
         ],
@@ -444,9 +437,7 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
                 ],
               ),
             )
-          : 
-                _buildPagesTab(),
-                
+          : _buildPagesTab(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : _generate,
         icon: const Icon(Icons.auto_fix_high),
@@ -503,11 +494,13 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.auto_fix_high_outlined, size: 64, color: Colors.grey.shade400),
+                        Icon(Icons.auto_fix_high_outlined,
+                            size: 64, color: Colors.grey.shade400),
                         const SizedBox(height: 16),
                         Text(
                           'No files added yet',
-                          style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
+                          style: TextStyle(
+                              fontSize: 18, color: Colors.grey.shade600),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -541,7 +534,7 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
         final path = _inputs[index];
         final name = p.basename(path);
         final type = _pageTypeCache[path];
-        
+
         return Card(
           key: ValueKey(path),
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -594,7 +587,7 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
         final path = _inputs[index];
         final name = p.basename(path);
         final type = _pageTypeCache[path];
-        
+
         return Card(
           key: ValueKey(path),
           child: Stack(
@@ -633,9 +626,11 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
                   color: Colors.black54,
                   shape: const CircleBorder(),
                   child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                    icon:
+                        const Icon(Icons.close, color: Colors.white, size: 20),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                    constraints:
+                        const BoxConstraints.tightFor(width: 32, height: 32),
                     onPressed: () => setState(() {
                       _inputs.removeAt(index);
                       _pageTypeCache.remove(path);
@@ -700,7 +695,8 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
       ),
       child: Text(
         type == PageType.textBased ? '✅ Text' : '📷 Scan',
-        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+            color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -785,7 +781,6 @@ class _OcrPdfScreenState extends State<OcrPdfScreen> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  
                   '• Scan pages to be processed with OCR\n'
                   '• Output text can be copied\n'
                   // '• Processing runs in background without blocking UI\n'

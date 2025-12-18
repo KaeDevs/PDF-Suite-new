@@ -3,6 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as p;
+import '../Services/file_service.dart';
+import '../Widgets/common/custom_snackbar.dart';
 
 class PdfViewPage extends StatefulWidget {
   final String filePath;
@@ -159,6 +163,71 @@ class _PdfViewPageState extends State<PdfViewPage> {
     });
   }
 
+  Future<void> _sharePdf() async {
+    try {
+      final file = File(widget.filePath);
+      if (!await file.exists()) {
+        if (mounted) {
+          CustomSnackbar.showError(context, 'File not found');
+        }
+        return;
+      }
+
+      await Share.shareXFiles(
+        [
+          XFile(
+            file.path,
+            mimeType: 'application/pdf',
+            name: widget.title ?? 'document.pdf',
+          ),
+        ],
+        subject: widget.title ?? 'PDF Document',
+        text: widget.title ?? 'PDF Document',
+      );
+    } catch (e) {
+      if (mounted) {
+        CustomSnackbar.showError(context, 'Unable to share: $e');
+      }
+    }
+  }
+
+  Future<void> _saveToDirectory() async {
+    try {
+      final file = File(widget.filePath);
+      if (!await file.exists()) {
+        if (mounted) {
+          CustomSnackbar.showError(context, 'File not found');
+        }
+        return;
+      }
+
+      // Let user pick a directory
+      final directoryPath = await FilePicker.platform.getDirectoryPath();
+      
+      if (directoryPath == null) {
+        // User cancelled the picker
+        return;
+      }
+
+      // Get the original filename
+      final fileName = p.basename(file.path);
+      
+      // Create the destination path
+      final destinationPath = p.join(directoryPath, fileName);
+      
+      // Copy the file to the chosen directory
+      final savedFile = await file.copy(destinationPath);
+      
+      if (mounted) {
+        CustomSnackbar.showSuccess(context, 'Saved to: ${savedFile.path}');
+      }
+    } catch (e) {
+      if (mounted) {
+        CustomSnackbar.showError(context, 'Failed to save: $e');
+      }
+    }
+  }
+
   @override
   void dispose() {
     _hudTimer?.cancel();
@@ -306,41 +375,8 @@ Widget build(BuildContext context) {
           ? AppBar(
               title: Text(widget.title ?? 'PDF Viewer'),
               actions: [
-                if (!_isLoading && _error == null && _totalPages > 0) ...[
                   IconButton(
-                    icon: const Icon(Icons.share),
-                    onPressed: () async {
-                      try {
-                      final file = File(widget.filePath);
-                      if (!await file.exists()) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('File not found')),
-                        );
-                        return;
-                      }
-
-                      await Share.shareXFiles(
-                        [
-                        XFile(
-                          file.path,
-                          mimeType: 'application/pdf',
-                          name: widget.title ?? 'document.pdf',
-                        ),
-                        ],
-                        subject: widget.title ?? 'PDF Document',
-                        text: widget.title ?? 'PDF Document',
-                      );
-                      } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Unable to share: $e')),
-                      );
-                      }
-                    
-                    },
-                    tooltip: 'Share',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.first_page),
+                    icon: const Icon(Icons.first_page, color: Colors.white,),
                     onPressed: _currentPage > 1
                         ? () => _pdfController.animateToPage(
                               pageNumber: 1,
@@ -349,6 +385,41 @@ Widget build(BuildContext context) {
                             )
                         : null,
                     tooltip: 'First page',
+                  ),
+                  const SizedBox(width: 8),
+                if (!_isLoading && _error == null && _totalPages > 0) ...[
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    tooltip: 'Options',
+                    onSelected: (value) async {
+                      if (value == 'share') {
+                        await _sharePdf();
+                      } else if (value == 'save') {
+                        await _saveToDirectory();
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'share',
+                        child: Row(
+                          children: [
+                            Icon(Icons.share, color: Theme.of(context).iconTheme.color,),
+                            const SizedBox(width: 12),
+                            const Text('Share PDF'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'save',
+                        child: Row(
+                          children: [
+                            Icon(Icons.save_alt, color: Theme.of(context).iconTheme.color,),
+                            const SizedBox(width: 12),
+                            const Text('Save to Directory'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(width: 8),
                 ],

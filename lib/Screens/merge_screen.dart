@@ -1,4 +1,3 @@
-
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
@@ -11,7 +10,7 @@ import '../Services/file_service.dart';
 import '../Widgets/common/custom_snackbar.dart';
 import '../services/ad_service.dart';
 import '../Widgets/dialogs/name_dialog.dart';
-import '../Widgets/dialogs/export_dialog.dart';
+import 'output_screen.dart';
 
 class MergeScreen extends StatefulWidget {
   const MergeScreen({super.key});
@@ -136,7 +135,8 @@ class _MergeScreenState extends State<MergeScreen> {
     return idx;
   }
 
-  List<PageRef> get _visiblePages => _visibleIndices.map((i) => _pagesAll[i]).toList(growable: false);
+  List<PageRef> get _visiblePages =>
+      _visibleIndices.map((i) => _pagesAll[i]).toList(growable: false);
 
   void _reorderPages(int oldIndex, int newIndex) {
     setState(() {
@@ -153,7 +153,8 @@ class _MergeScreenState extends State<MergeScreen> {
         int toGlobal;
         if (newIndex >= indicesAfter.length) {
           // Insert after the last visible item (or at end if none)
-          toGlobal = indicesAfter.isEmpty ? _pagesAll.length : (indicesAfter.last + 1);
+          toGlobal =
+              indicesAfter.isEmpty ? _pagesAll.length : (indicesAfter.last + 1);
         } else {
           toGlobal = indicesAfter[newIndex];
         }
@@ -214,22 +215,15 @@ class _MergeScreenState extends State<MergeScreen> {
             _progressText = null;
           });
 
-          await showModalBottomSheet(
-            context: context,
-            builder: (ctx) => ExportDialog(
-                    
-                    onSharePdf: () async {
-                    Navigator.pop(ctx);
-                    await FileService.shareFile(file, 'pdf');
-                    },
-                    onSavePdf: () async {
-                    Navigator.pop(ctx);
-                    final saved = await FileService.saveToDownloads(file);
-                    if (!mounted) return;
-                    CustomSnackbar.showSuccess(context, 'Saved to: ${saved.path}');
-                    // Open the folder and highlight the saved file
-                    // await FileService.openFileLocation(saved.path);
-                    },
+          // Navigate to output screen
+          if (!mounted) return;
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => OutputScreen(
+                pdfFile: file,
+                customTitle: baseName,
+              ),
             ),
           );
         } catch (e) {
@@ -262,9 +256,11 @@ class _MergeScreenState extends State<MergeScreen> {
       final aspect = page.width / page.height;
       double w, h;
       if (aspect >= 1) {
-        w = maxSide; h = maxSide / aspect;
+        w = maxSide;
+        h = maxSide / aspect;
       } else {
-        h = maxSide; w = maxSide * aspect;
+        h = maxSide;
+        w = maxSide * aspect;
       }
       final img = await page.render(
         width: w,
@@ -290,15 +286,15 @@ class _MergeScreenState extends State<MergeScreen> {
       final ref = _pagesAll.removeAt(globalIndex);
       _thumbCache.remove('${ref.filePath}::${ref.pageNumber}');
     });
-  // void _duplicatePageAt(int visibleIndex) {
-  //   setState(() {
-  //     final indices = _visibleIndices;
-  //     if (visibleIndex < 0 || visibleIndex >= indices.length) return;
-  //     final globalIndex = indices[visibleIndex];
-  //     final ref = _pagesAll[globalIndex];
-  //     _pagesAll.insert(globalIndex + 1, PageRef(filePath: ref.filePath, pageNumber: ref.pageNumber));
-  //   });
-  // }
+    // void _duplicatePageAt(int visibleIndex) {
+    //   setState(() {
+    //     final indices = _visibleIndices;
+    //     if (visibleIndex < 0 || visibleIndex >= indices.length) return;
+    //     final globalIndex = indices[visibleIndex];
+    //     final ref = _pagesAll[globalIndex];
+    //     _pagesAll.insert(globalIndex + 1, PageRef(filePath: ref.filePath, pageNumber: ref.pageNumber));
+    //   });
+    // }
   }
 
   Color _colorForFile(String filePath) {
@@ -355,25 +351,25 @@ class _MergeScreenState extends State<MergeScreen> {
         ),
         floatingActionButton: null,
         body: _loading
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  if (_progressText != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      _progressText!,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    if (_progressText != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        _progressText!,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
                   ],
-                ],
+                ),
+              )
+            : AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: _level == 0 ? _buildFilesLevel() : _buildPagesLevel(),
               ),
-            )
-          : AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: _level == 0 ? _buildFilesLevel() : _buildPagesLevel(),
-            ),
       ),
     );
   }
@@ -541,7 +537,7 @@ class _MergeScreenState extends State<MergeScreen> {
 
   Widget _buildPageTile(int visibleIndex, PageRef ref) {
     final key = ValueKey('${ref.filePath}:${ref.pageNumber}:$visibleIndex');
-  final badgeColor = _colorForFile(ref.filePath);
+    final badgeColor = _colorForFile(ref.filePath);
     return Container(
       key: key,
       decoration: BoxDecoration(
@@ -556,7 +552,8 @@ class _MergeScreenState extends State<MergeScreen> {
               future: _getThumb(ref),
               builder: (context, snap) {
                 if (snap.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                  return const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2));
                 }
                 if (snap.data == null) {
                   return const Center(child: Icon(Icons.image_not_supported));
@@ -576,7 +573,10 @@ class _MergeScreenState extends State<MergeScreen> {
               ),
               child: Text(
                 'Pg ${ref.pageNumber}',
-                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -634,7 +634,9 @@ class _MergeScreenState extends State<MergeScreen> {
               ),
               for (final n in [2, 3, 4, 5])
                 ListTile(
-                  leading: Icon(n == _gridCount ? Icons.radio_button_checked : Icons.radio_button_off),
+                  leading: Icon(n == _gridCount
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off),
                   title: Text('$n per row'),
                   onTap: () => Navigator.pop(context, n),
                 ),

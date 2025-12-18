@@ -39,7 +39,28 @@ kotlinOptions {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        ndk {
+            // Only include required ABIs
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
+        }
     }
+    
+    bundle {
+        language {
+            // Only include English resources
+            enableSplit = false
+        }
+        density {
+            // Enable density splits for smaller downloads
+            enableSplit = true
+        }
+        abi {
+            // Enable ABI splits for smaller downloads  
+            enableSplit = true
+        }
+    }
+    
     val storeFilePath = keystoreProperties["storeFile"]?.toString()
     ?: throw GradleException("Missing 'storeFile' in key.properties")
 val storePassword = keystoreProperties["storePassword"]?.toString()
@@ -70,6 +91,19 @@ signingConfigs {
             "proguard-rules.pro"
         )
     }
+    }
+    
+    packagingOptions {
+        resources {
+            excludes += setOf(
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+                "META-INF/*.kotlin_module",
+                "kotlin/**",
+                "/*.txt",
+                "/*.bin"
+            )
+        }
     }
 }
 

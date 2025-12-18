@@ -159,78 +159,97 @@ class OcrPdfService {
     required String language,
     required bool forceOcrAll,
   }) async {
-    // Render source PDF page to an image
-    final bytes = await File(pageInfo.filePath).readAsBytes();
-    final pdfxDoc = await pdfx.PdfDocument.openData(bytes);
-    final pdfxPage = await pdfxDoc.getPage(pageInfo.pageNumber);
+    pdfx.PdfDocument? pdfxDoc;
+    pdfx.PdfPage? pdfxPage;
+    
+    try {
+      // Render source PDF page to an image
+      final bytes = await File(pageInfo.filePath).readAsBytes();
+      pdfxDoc = await pdfx.PdfDocument.openData(bytes);
+      pdfxPage = await pdfxDoc.getPage(pageInfo.pageNumber);
 
-    // Render at 2x for better quality
-    final rendered = await pdfxPage.render(
-      width: pdfxPage.width * 2,
-      height: pdfxPage.height * 2,
-      format: pdfx.PdfPageImageFormat.png,
-    );
-    await pdfxPage.close();
-    await pdfxDoc.close();
-
-    if (rendered == null) {
-      pdf.addPage(pw.Page(build: (context) => pw.Container()));
-      return;
-    }
-
-    final imageWidthPx = (rendered.width ?? pdfxPage.width * 2).toDouble();
-    final imageHeightPx = (rendered.height ?? pdfxPage.height * 2).toDouble();
-
-    // Decode image for embedding
-    final decodedImage = img.decodeImage(rendered.bytes);
-    if (decodedImage == null) {
-      pdf.addPage(pw.Page(build: (context) => pw.Container()));
-      return;
-    }
-
-    final pdfImage = pw.MemoryImage(rendered.bytes);
-
-    // Add OCR text layer if needed
-    List<OcrTextBlock>? ocrBlocks;
-    if (pageInfo.needsOcr || forceOcrAll) {
-      final processedBytes = await _preprocessImage(rendered.bytes);
-      final ocr = await ocrEngine.recognizeText(
-        processedBytes,
-        language: language,
-        imageSize: ui.Size(imageWidthPx, imageHeightPx),
+      // Render at 1.5x for better quality without excessive memory use
+      final rendered = await pdfxPage.render(
+        width: pdfxPage.width * 1.5,
+        height: pdfxPage.height * 1.5,
+        format: pdfx.PdfPageImageFormat.jpeg,
+        backgroundColor: '#FFFFFF',
       );
+      
+      await pdfxPage.close();
+      await pdfxDoc.close();
+      pdfxPage = null;
+      pdfxDoc = null;
 
-      if (ocr.hasText) {
-        print('📝 OCR found ${ocr.blocks.length} text blocks');
-        ocrBlocks = ocr.blocks;
+      if (rendered == null || rendered.width == null || rendered.height == null) {
+        pdf.addPage(pw.Page(build: (context) => pw.Container()));
+        return;
       }
-    }
 
-    // Create PDF page with image and invisible text layer
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat(
-          imageWidthPx,
-          imageHeightPx,
-          marginAll: 0,
-        ),
-        build: (context) {
-          return pw.Stack(
-            children: [
-              // Background image
-              pw.Image(pdfImage, fit: pw.BoxFit.fill),
-              // Invisible text layer
-              if (ocrBlocks != null)
-                ..._buildInvisibleTextWidgets(
-                  ocrBlocks,
-                  imageWidthPx,
-                  imageHeightPx,
-                ),
-            ],
+      final imageWidthPx = rendered.width!.toDouble();
+      final imageHeightPx = rendered.height!.toDouble();
+
+      // Use rendered bytes directly without decoding
+      final pdfImage = pw.MemoryImage(rendered.bytes);
+
+      // Add OCR text layer if needed
+      List<OcrTextBlock>? ocrBlocks;
+      if (pageInfo.needsOcr || forceOcrAll) {
+        try {
+          final processedBytes = await _preprocessImage(rendered.bytes);
+          final ocr = await ocrEngine.recognizeText(
+            processedBytes,
+            language: language,
+            imageSize: ui.Size(imageWidthPx, imageHeightPx),
           );
-        },
-      ),
-    );
+
+          if (ocr.hasText) {
+            print('📝 OCR found ${ocr.blocks.length} text blocks');
+            ocrBlocks = ocr.blocks;
+          }
+        } catch (e) {
+          print('⚠️ OCR failed for page ${pageInfo.pageNumber}: $e');
+          // Continue without OCR
+        }
+      }
+
+      // Create PDF page with image and invisible text layer
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat(
+            imageWidthPx,
+            imageHeightPx,
+            marginAll: 0,
+          ),
+          build: (context) {
+            return pw.Stack(
+              children: [
+                // Background image
+                pw.Image(pdfImage, fit: pw.BoxFit.fill),
+                // Invisible text layer
+                if (ocrBlocks != null)
+                  ..._buildInvisibleTextWidgets(
+                    ocrBlocks,
+                    imageWidthPx,
+                    imageHeightPx,
+                  ),
+              ],
+            );
+          },
+        ),
+      );
+    } catch (e, stackTrace) {
+      print('❌ Error processing PDF page ${pageInfo.pageNumber}: $e');
+      print('Stack trace: $stackTrace');
+      // Add empty page on error
+      pdf.addPage(pw.Page(build: (context) => pw.Container()));
+    } finally {
+      // Ensure cleanup
+      try {
+        await pdfxPage?.close();
+        await pdfxDoc?.close();
+      } catch (_) {}
+    }
   }
 
   /// Process a single image page
@@ -240,62 +259,74 @@ class OcrPdfService {
     required OcrEngine ocrEngine,
     required String language,
   }) async {
-    final bytes = await File(pageInfo.filePath).readAsBytes();
+    try {
+      final bytes = await File(pageInfo.filePath).readAsBytes();
 
-    // Decode image to get dimensions
-    final decodedImg = img.decodeImage(bytes);
-    if (decodedImg == null) {
-      pdf.addPage(pw.Page(build: (context) => pw.Container()));
-      return;
-    }
+      // Decode image to get dimensions
+      final decodedImg = img.decodeImage(bytes);
+      if (decodedImg == null) {
+        pdf.addPage(pw.Page(build: (context) => pw.Container()));
+        return;
+      }
 
-    final imageWidthPx = decodedImg.width.toDouble();
-    final imageHeightPx = decodedImg.height.toDouble();
+      final imageWidthPx = decodedImg.width.toDouble();
+      final imageHeightPx = decodedImg.height.toDouble();
 
-    final pdfImage = pw.MemoryImage(bytes);
+      final pdfImage = pw.MemoryImage(bytes);
 
-    // Add OCR text layer
-    final processedBytes = await _preprocessImage(bytes);
-    final ocrResult = await ocrEngine.recognizeText(
-      processedBytes,
-      language: language,
-      imageSize: ui.Size(imageWidthPx, imageHeightPx),
-    );
+      // Add OCR text layer
+      List<OcrTextBlock>? ocrBlocks;
+      try {
+        final processedBytes = await _preprocessImage(bytes);
+        final ocrResult = await ocrEngine.recognizeText(
+          processedBytes,
+          language: language,
+          imageSize: ui.Size(imageWidthPx, imageHeightPx),
+        );
 
-    List<OcrTextBlock>? ocrBlocks;
-    if (ocrResult.hasText) {
-      print('📝 OCR found ${ocrResult.blocks.length} text blocks');
-      ocrBlocks = ocrResult.blocks;
-    }
+        if (ocrResult.hasText) {
+          print('📝 OCR found ${ocrResult.blocks.length} text blocks');
+          ocrBlocks = ocrResult.blocks;
+        }
+      } catch (e) {
+        print('⚠️ OCR failed for image: $e');
+        // Continue without OCR
+      }
 
-    // Create PDF page with image and invisible text layer
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat(
-          imageWidthPx,
-          imageHeightPx,
-          marginAll: 0,
+      // Create PDF page with image and invisible text layer
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat(
+            imageWidthPx,
+            imageHeightPx,
+            marginAll: 0,
+          ),
+          build: (context) {
+            return pw.Stack(
+              children: [
+                // Background image
+                pw.Image(pdfImage, fit: pw.BoxFit.fill),
+                // Invisible text layer
+                if (ocrBlocks != null)
+                  ..._buildInvisibleTextWidgets(
+                    ocrBlocks,
+                    imageWidthPx,
+                    imageHeightPx,
+                  ),
+              ],
+            );
+          },
         ),
-        build: (context) {
-          return pw.Stack(
-            children: [
-              // Background image
-              pw.Image(pdfImage, fit: pw.BoxFit.fill),
-              // Invisible text layer
-              if (ocrBlocks != null)
-                ..._buildInvisibleTextWidgets(
-                  ocrBlocks,
-                  imageWidthPx,
-                  imageHeightPx,
-                ),
-            ],
-          );
-        },
-      ),
-    );
+      );
+    } catch (e, stackTrace) {
+      print('❌ Error processing image page: $e');
+      print('Stack trace: $stackTrace');
+      // Add empty page on error
+      pdf.addPage(pw.Page(build: (context) => pw.Container()));
+    }
   }
 
-    /// Preprocess image for better OCR
+  /// Preprocess image for better OCR
   static Future<Uint8List> _preprocessImage(Uint8List imageBytes) async {
     try {
       final image = img.decodeImage(imageBytes);

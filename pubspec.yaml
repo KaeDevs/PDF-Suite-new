@@ -1,7 +1,7 @@
 name: docu_scan
 description: A professional document scanner app with PDF and image export capabilities.
 
-version: 1.3.3+13
+version: 1.3.4+14
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -21,9 +21,6 @@ dependencies:
   heif_converter: ^1.0.1
   flutter_image_compress: ^2.4.0
   device_info_plus: ^11.5.0
-  flutter_launcher_icons: ^0.14.4
-  
-  rename_app: ^1.6.5
   google_mobile_ads: ^6.0.0
   pdfx: ^2.9.2
   in_app_update: ^4.2.5
@@ -34,14 +31,13 @@ dependencies:
   http: ^1.6.0
   google_mlkit_text_recognition: ^0.13.1
   open_filex: ^4.7.0
-  
-  
 
 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true

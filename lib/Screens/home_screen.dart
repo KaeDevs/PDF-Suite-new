@@ -15,9 +15,9 @@ import '../services/pdf_service.dart';
 import '../services/pdf_viewer_service.dart';
 import '../widgets/common/custom_snackbar.dart';
 import '../widgets/common/loading_overlay.dart';
-import '../widgets/dialogs/export_dialog.dart';
 // import '../widgets/dialogs/name_dialog.dart';
 import '../widgets/dialogs/settings_dialog.dart';
+import 'output_screen.dart';
 import '../widgets/scan_grid.dart';
 import 'package:path/path.dart' as p;
 import 'merge_screen.dart';
@@ -134,7 +134,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _chooseInputMethod() {
     showModalBottomSheet(
-
       context: context,
       builder: (context) => SafeArea(
         child: Column(
@@ -143,36 +142,35 @@ class _HomeScreenState extends State<HomeScreen> {
             // const SizedBox(height: 16),
             Wrap(
               children: [
-                
                 ModernListTile(
-      icon: Icons.document_scanner_outlined,
-      title: 'Scan with Camera',
-      subtitle: 'Use your camera to scan documents',
-      onTap: () {
-        Navigator.pop(context);
-        _scanDocuments();
-      },
-    ),
-    const SizedBox(height: 8),
-    ModernListTile(
-      icon: Icons.photo_library_outlined,
-      title: 'Pick from Gallery',
-      subtitle: 'Choose images from your device',
-      onTap: () {
-        Navigator.pop(context);
-        _pickFromFiles();
-      },
-    ),
-    // const SizedBox(height: 8),
-    // ModernListTile(
-    //   icon: Icons.merge_type_outlined,
-    //   title: 'Merge PDFs',
-    //   subtitle: 'Combine multiple PDFs into one',
-    //   onTap: () {
-    //     Navigator.pop(context);
-    //     _mergePdfsFlow();
-    //   },
-    // ),
+                  icon: Icons.document_scanner_outlined,
+                  title: 'Scan with Camera',
+                  subtitle: 'Use your camera to scan documents',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _scanDocuments();
+                  },
+                ),
+                const SizedBox(height: 8),
+                ModernListTile(
+                  icon: Icons.photo_library_outlined,
+                  title: 'Pick from Gallery',
+                  subtitle: 'Choose images from your device',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickFromFiles();
+                  },
+                ),
+                // const SizedBox(height: 8),
+                // ModernListTile(
+                //   icon: Icons.merge_type_outlined,
+                //   title: 'Merge PDFs',
+                //   subtitle: 'Combine multiple PDFs into one',
+                //   onTap: () {
+                //     Navigator.pop(context);
+                //     _mergePdfsFlow();
+                //   },
+                // ),
               ],
             ),
           ],
@@ -181,24 +179,50 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _exportAsPdf() {
+  void _exportAsPdf() async {
     if (_scannedImages.isEmpty) return;
 
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => ExportDialog(
-        
-        onSharePdf: () {
-          Navigator.pop(context);
-          _exportPdfWithAd(saveOnly: false);
-        },
-        onSavePdf: () {
-          Navigator.pop(context);
-          _exportPdfWithAd(saveOnly: true);
-          
-        },
-      ),
-    );
+    setState(() {
+      _isLoading = true;
+      _loadingText = 'Preparing export…';
+    });
+
+    try {
+      // Start the conversion immediately
+      final conversionFuture = PdfService.convertImagesToPdf(
+        _scannedImages,
+        _settings.documentName,
+        _settings.compressionEnabled,
+      );
+
+      // Show an ad while conversion runs in the background
+      final pdfFile = await _adService.showAdWhileFuture(conversionFuture);
+
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadingText = null;
+      });
+
+      // Navigate to output screen
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OutputScreen(
+            pdfFile: pdfFile,
+            customTitle: _settings.documentName,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _loadingText = null;
+        });
+        CustomSnackbar.showError(context, 'PDF export failed: $e');
+      }
+    }
   }
 
   Future<void> _exportPdfWithAd({required bool saveOnly}) async {
@@ -245,10 +269,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  
-
-  
-
   Future<void> _exportImagesWithAd() async {
     if (_scannedImages.isEmpty) return;
     setState(() {
@@ -291,7 +311,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Flow to merge multiple PDF files into one
-  
 
   void _clearScans() {
     setState(() => _scannedImages = []);
@@ -314,301 +333,301 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Removed name dialog in favor of inline editing in AppBar
 
-  
-@override
-Widget build(BuildContext context) {
-  final hasScans = _scannedImages.isNotEmpty;
-  final theme = Theme.of(context);
-  // final isDark = theme.brightness == Brightness.dark;
+  @override
+  Widget build(BuildContext context) {
+    final hasScans = _scannedImages.isNotEmpty;
+    final theme = Theme.of(context);
+    // final isDark = theme.brightness == Brightness.dark;
 
-  return SafeArea(
-    child: Scaffold(
-      bottomNavigationBar: hasScans
-          ? Container(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                border: Border(
-                  top: BorderSide(
-                    color: theme.colorScheme.outlineVariant.withOpacity(0.5),
-                    width: 1,
+    return SafeArea(
+      child: Scaffold(
+        bottomNavigationBar: hasScans
+            ? Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  border: Border(
+                    top: BorderSide(
+                      color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                      width: 1,
+                    ),
                   ),
                 ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _ModernActionButton(
+                          label: 'Export as PDF',
+                          icon: Icons.picture_as_pdf_outlined,
+                          isPrimary: true,
+                          onPressed: _isLoading ? null : _exportAsPdf,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ModernActionButton(
+                          label: 'Export as Images',
+                          icon: Icons.image_outlined,
+                          isPrimary: true,
+                          onPressed: _isLoading ? null : _exportImagesWithAd,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : null,
+        appBar: AppBar(
+          elevation: 0,
+          leading: hasScans
+              ? IconButton(
+                  onPressed: _scanDocuments,
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  tooltip: 'Scan',
+                )
+              : Row(
                   children: [
-                    Expanded(
-                      child: _ModernActionButton(
-                        label: 'Export as PDF',
-                        icon: Icons.picture_as_pdf_outlined,
-                        isPrimary: true,
-                        onPressed: _isLoading ? null : _exportAsPdf,
+                    IconButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AboutPage(),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _ModernActionButton(
-                        label: 'Export as Images',
-                        icon: Icons.image_outlined,
-                        isPrimary: true,
-
-                        onPressed: _isLoading ? null : _exportImagesWithAd,
-                      ),
+                      icon: const Icon(Icons.info_outline),
+                      tooltip: 'AboutPage',
                     ),
                   ],
                 ),
-              ),
-            )
-          : null,
-      appBar: AppBar(
-        elevation: 0,
-        leading: hasScans
-            ? IconButton(
-                onPressed: _scanDocuments,
-                icon: const Icon(Icons.camera_alt_outlined),
-                tooltip: 'Scan',
-              )
-            : Row(
-              children: [
-                IconButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AboutPage(),
+          title: hasScans
+              ? _isEditing
+                  ? TextField(
+                      controller: _nameController,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: "Enter name",
+                        hintStyle: TextStyle(
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        ),
                       ),
-                    ),
-                    icon: const Icon(Icons.info_outline),
-                    tooltip: 'AboutPage',
-                  ),
-              ],
-            ),
-            
-        title: hasScans
-            ? _isEditing
-                ? TextField(
-                    controller: _nameController,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: "Enter name",
-                      hintStyle: TextStyle(
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
                       ),
-                    ),
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                    onSubmitted: (val) {
-                      setState(() {
-                        _settings = _settings.copyWith(
-                          documentName: val.isEmpty ? "Name" : val,
-                        );
-                        _isEditing = false;
-                      });
-                    },
-                  )
-                : GestureDetector(
-                    onTap: () => setState(() => _isEditing = true),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _settings.documentName ?? "Name",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            fontFamily: "Oswald",
-
+                      onSubmitted: (val) {
+                        setState(() {
+                          _settings = _settings.copyWith(
+                            documentName: val.isEmpty ? "Name" : val,
+                          );
+                          _isEditing = false;
+                        });
+                      },
+                    )
+                  : GestureDetector(
+                      onTap: () => setState(() => _isEditing = true),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _settings.documentName ?? "Name",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              fontFamily: "Oswald",
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.edit_outlined,
+                            size: 18,
                             color: Colors.white,
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Icon(
-                          Icons.edit_outlined,
-                          size: 18,
-                          color: Colors.white,
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    )
+              : Text(
+                  "PDF Suite",
+                  style: Tools.h2(context).copyWith(
+                    fontWeight: FontWeight.w900,
+                    fontFamily: "Oswald",
+                    color: Colors.white,
+                    fontSize: 22,
+                  ),
+                ),
+          centerTitle: true,
+          actions: [
+            hasScans
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Settings',
+                        onPressed: _isLoading ? null : _showSettings,
+                        icon: const Icon(Icons.settings_outlined),
+                      ),
+                      IconButton(
+                        tooltip: 'Clear',
+                        onPressed: _isLoading ? null : _clearScans,
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ],
                   )
-            : Text(
-                "PDF Suite",
-                style: Tools.h2(context).copyWith(
-                  fontWeight: FontWeight.w900,
-                  fontFamily: "Oswald",
-                  color: Colors.white,
-                  fontSize: 22,
-                ),
-              ),
-        centerTitle: true,
-        actions: [
-          hasScans ?
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: 'Settings',
-                  onPressed: _isLoading ? null : _showSettings,
-                  icon: const Icon(Icons.settings_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Clear',
-                  onPressed: _isLoading ? null : _clearScans,
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
-            ) : IconButton(
-              tooltip: 'Feedback',
-              onPressed: () {
-                FeedbackDialog.show(context);
-              },
-              icon: const Icon(Icons.feedback_outlined),
-            ),
-        ],
-      ),
-      body: LoadingOverlay(
-        isLoading: _isLoading,
-        loadingText: _loadingText,
-        child: hasScans
-            ? ScanGrid(
-                imagePaths: _scannedImages,
-                onImageDelete: (index) {
-                  setState(() => _scannedImages.removeAt(index));
-                },
-                onReorder: _reorderImages,
-              )
-            : SingleChildScrollView(
-              child: Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "Choose an option below",
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
-                            fontWeight: FontWeight.w600,
+                : IconButton(
+                    tooltip: 'Feedback',
+                    onPressed: () {
+                      FeedbackDialog.show(context);
+                    },
+                    icon: const Icon(Icons.feedback_outlined),
+                  ),
+          ],
+        ),
+        body: LoadingOverlay(
+          isLoading: _isLoading,
+          loadingText: _loadingText,
+          child: hasScans
+              ? ScanGrid(
+                  imagePaths: _scannedImages,
+                  onImageDelete: (index) {
+                    setState(() => _scannedImages.removeAt(index));
+                  },
+                  onReorder: _reorderImages,
+                )
+              : SingleChildScrollView(
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "Choose an option below",
+                            style: TextStyle(
+                              fontSize: 18,
+                              color:
+                                  theme.colorScheme.onSurface.withOpacity(0.7),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 28),
-              
-                        // Scan Document Card
-                        _ModernCard(
-                          icon: Icons.document_scanner_rounded,
-                          title: 'Scan Document',
-                          subtitle: 'Scan using camera',
-                          gradientIndex: 0,
-                          rating: 4.5,
-                          onPressed: _isLoading ? null : _chooseInputMethod,
-                        ),
-                        const SizedBox(height: 16),
-              
-                        // Open PDFs Card
-                        _ModernCard(
-                          icon: Icons.picture_as_pdf_rounded,
-                          title: 'Open PDFs',
-                          subtitle: 'View & manage',
-                          gradientIndex: 0,
-                          rating: 4.8,
-                          onPressed: _isLoading ? null : _pickAndViewPdf,
-                        ),
-                        const SizedBox(height: 16),
-              
-                        // Merge PDFs Card
-                        _ModernCard(
-                          icon: Icons.merge_type_rounded,
-                          title: 'Merge PDFs',
-                          subtitle: 'Combine files',
-                          gradientIndex: 0,
-                          rating: 4.6,
-                          onPressed: _isLoading
-                              ? null
-                              : () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const MergeScreen(),
+                          const SizedBox(height: 28),
+
+                          // Scan Document Card
+                          _ModernCard(
+                            icon: Icons.document_scanner_rounded,
+                            title: 'Scan Document',
+                            subtitle: 'Scan using camera',
+                            gradientIndex: 0,
+                            rating: 4.5,
+                            onPressed: _isLoading ? null : _chooseInputMethod,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Open PDFs Card
+                          _ModernCard(
+                            icon: Icons.picture_as_pdf_rounded,
+                            title: 'Open PDFs',
+                            subtitle: 'View & manage',
+                            gradientIndex: 0,
+                            rating: 4.8,
+                            onPressed: _isLoading ? null : _pickAndViewPdf,
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Merge PDFs Card
+                          _ModernCard(
+                            icon: Icons.merge_type_rounded,
+                            title: 'Merge PDFs',
+                            subtitle: 'Combine files',
+                            gradientIndex: 0,
+                            rating: 4.6,
+                            onPressed: _isLoading
+                                ? null
+                                : () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const MergeScreen(),
+                                      ),
                                     ),
-                                  ),
-                        ),
-                        const SizedBox(height: 16),
-              
-                        // Numbered PDF Card
-                        // _ModernCard(
-                        //   icon: Icons.format_list_numbered_rounded,
-                        //   title: 'Numbered PDF',
-                        //   subtitle: 'Add page numbers',
-                        //   gradientIndex: 0,
-                        //   rating: 4.6,
-                        //   onPressed: _isLoading
-                        //       ? null
-                        //       : () => Navigator.push(
-                        //             context,
-                        //             MaterialPageRoute(
-                        //               builder: (_) => const NumberedPdfScreen(),
-                        //             ),
-                        //           ),
-                        // ),
-                        // const SizedBox(height: 16),
-              
-                        // Compress PDFs Card
-                        _ModernCard(
-                          icon: Icons.compress_rounded,
-                          title: 'Compress PDFs',
-                          subtitle: 'Reduce file size',
-                          gradientIndex: 0,
-                          rating: 4.7,
-                          onPressed: _isLoading
-                              ? null
-                              : () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const CompressScreen(),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Numbered PDF Card
+                          // _ModernCard(
+                          //   icon: Icons.format_list_numbered_rounded,
+                          //   title: 'Numbered PDF',
+                          //   subtitle: 'Add page numbers',
+                          //   gradientIndex: 0,
+                          //   rating: 4.6,
+                          //   onPressed: _isLoading
+                          //       ? null
+                          //       : () => Navigator.push(
+                          //             context,
+                          //             MaterialPageRoute(
+                          //               builder: (_) => const NumberedPdfScreen(),
+                          //             ),
+                          //           ),
+                          // ),
+                          // const SizedBox(height: 16),
+
+                          // Compress PDFs Card
+                          _ModernCard(
+                            icon: Icons.compress_rounded,
+                            title: 'Compress PDFs',
+                            subtitle: 'Reduce file size',
+                            gradientIndex: 0,
+                            rating: 4.7,
+                            onPressed: _isLoading
+                                ? null
+                                : () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const CompressScreen(),
+                                      ),
                                     ),
-                                  ),
-                        ),
-                        const SizedBox(height: 16),
-              
-                        // OCR Card (Make PDF Searchable)
-                        _ModernCard(
-                          icon: Icons.auto_fix_high_rounded,
-                          title: 'OCR',
-                          subtitle: 'Extract text from images',
-                          gradientIndex: 0,
-                          rating: 4.8,
-                          onPressed: _isLoading
-                              ? null
-                              : () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const OcrPdfScreen(),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // OCR Card (Make PDF Searchable)
+                          _ModernCard(
+                            icon: Icons.auto_fix_high_rounded,
+                            title: 'OCR',
+                            subtitle: 'Extract text from images',
+                            gradientIndex: 0,
+                            rating: 4.8,
+                            onPressed: _isLoading
+                                ? null
+                                : () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const OcrPdfScreen(),
+                                      ),
                                     ),
-                                  ),
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-            ),
+        ),
+        floatingActionButton: hasScans
+            ? FloatingActionButton.extended(
+                onPressed: _isLoading ? null : _chooseInputMethod,
+                elevation: 2,
+                icon: const Icon(Icons.add),
+                label: const Text(
+                  'Add Pages',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              )
+            : null,
       ),
-      floatingActionButton: hasScans
-          ? FloatingActionButton.extended(
-              onPressed: _isLoading ? null : _chooseInputMethod,
-              elevation: 2,
-              icon: const Icon(Icons.add),
-              label: const Text(
-                'Add Pages',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            )
-          : null,
-    ),
-  );
-}}
+    );
+  }
+}
 
 // Modern Card Widget - inspired by app store cards
 class _ModernCard extends StatefulWidget {
@@ -659,27 +678,27 @@ class _ModernCardState extends State<_ModernCard>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     // Get gradient based on index
     final gradients = AppTheme.getGridGradients(context);
     final gradient = gradients[widget.gradientIndex % gradients.length];
-    
+
     // Theme-aware colors
-    final cardBackground = isDark 
-        ? AppTheme.darkSurface  // Dark red surface for dark mode
-        : Colors.white;         // White for light mode
-    
+    final cardBackground = isDark
+        ? AppTheme.darkSurface // Dark red surface for dark mode
+        : Colors.white; // White for light mode
+
     final textColor = isDark
-        ? AppTheme.darkOnSurface  // Light pinkish text for dark mode
-        : AppTheme.lightPrimary;   // Crimson red for light mode
-    
+        ? AppTheme.darkOnSurface // Light pinkish text for dark mode
+        : AppTheme.lightPrimary; // Crimson red for light mode
+
     final subtitleColor = isDark
         ? AppTheme.darkOnSurface.withOpacity(0.7)
         : AppTheme.lightPrimary.withOpacity(0.7);
-    
-  // final borderColor = isDark
-  //     ? Colors.white.withOpacity(0.1)
-  //     : Colors.grey.withOpacity(0.2);
+
+    // final borderColor = isDark
+    //     ? Colors.white.withOpacity(0.1)
+    //     : Colors.grey.withOpacity(0.2);
 
     return GestureDetector(
       onTapDown: widget.onPressed != null ? (_) => _controller.forward() : null,
@@ -689,13 +708,15 @@ class _ModernCardState extends State<_ModernCard>
               widget.onPressed?.call();
             }
           : null,
-      onTapCancel: widget.onPressed != null ? () => _controller.reverse() : null,
+      onTapCancel:
+          widget.onPressed != null ? () => _controller.reverse() : null,
       child: ScaleTransition(
         scale: _scaleAnimation,
         child: Container(
           height: 100,
-          
-          margin: const EdgeInsets.symmetric(vertical: 2, ),
+          margin: const EdgeInsets.symmetric(
+            vertical: 2,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             color: cardBackground,
@@ -747,7 +768,8 @@ class _ModernCardState extends State<_ModernCard>
                     : AppTheme.lightPrimary.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(20),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   child: Row(
                     children: [
                       // Left side - Icon with gradient container
@@ -759,7 +781,8 @@ class _ModernCardState extends State<_ModernCard>
                           gradient: gradient,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.3 : 0.15),
+                              color:
+                                  Colors.black.withOpacity(isDark ? 0.3 : 0.15),
                               offset: const Offset(0, 4),
                               blurRadius: 8,
                               spreadRadius: 0,
@@ -772,9 +795,9 @@ class _ModernCardState extends State<_ModernCard>
                           color: Colors.white,
                         ),
                       ),
-                      
+
                       const SizedBox(width: 16),
-                      
+
                       // Right side - Text content
                       Expanded(
                         child: Column(
@@ -788,12 +811,11 @@ class _ModernCardState extends State<_ModernCard>
                                 color: textColor,
                                 fontSize: 22,
                                 fontWeight: FontWeight.w900,
-                                
                                 letterSpacing: 0.3,
                               ),
                             ),
                             const SizedBox(height: 6),
-                            
+
                             // Subtitle
                             Text(
                               widget.subtitle,
@@ -817,6 +839,7 @@ class _ModernCardState extends State<_ModernCard>
     );
   }
 }
+
 // Modern Action Button (for bottom bar)
 class _ModernActionButton extends StatelessWidget {
   final String label;
@@ -837,7 +860,7 @@ class _ModernActionButton extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        gradient: isPrimary 
+        gradient: isPrimary
             ? AppTheme.getPrimaryGradient(context)
             : AppTheme.getSecondaryGradient(context),
         borderRadius: BorderRadius.circular(12),
